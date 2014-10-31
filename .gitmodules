@@ -1,0 +1,3 @@
+[submodule "recordings"]
+	path = recordings
+	url = https://git.csx.cam.ac.uk/x/eng-sigproc/u/rjw57/misc/openi-data.git

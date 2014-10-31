@@ -28,6 +28,7 @@
 #include "SceneDrawer.h"
 #include "io.h"
 #include <XnPropNames.h>
+#include <GL/glut.h>
 
 //---------------------------------------------------------------------------
 // Globals
@@ -49,8 +50,6 @@ XnBool g_bPrintState = TRUE;
 XnBool g_bPrintFrameID = FALSE;
 XnBool g_bMarkJoints = TRUE;
 
-#include <GL/glut.h>
-
 #define GL_WIN_SIZE_X 720
 #define GL_WIN_SIZE_Y 480
 
@@ -58,6 +57,8 @@ XnBool g_bPause = false;
 XnBool g_bRecord = false;
 
 XnBool g_bQuit = false;
+
+DepthMapLogger g_Log;
 
 //---------------------------------------------------------------------------
 // Code
@@ -217,7 +218,7 @@ void glutDisplay (void)
 		DrawDepthMap(depthMD, sceneMD);
 
 		// HACK
-		DumpDepthMap(std::cout, depthMD, sceneMD);
+		g_Log.DumpDepthMap(depthMD, sceneMD);
 
 	glutSwapBuffers();
 }
@@ -414,6 +415,8 @@ int main(int argc, char **argv)
 
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
+
+	g_Log.Open("log.h5");
 
 	glInit(&argc, argv);
 	glutMainLoop();

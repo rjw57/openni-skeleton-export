@@ -22,10 +22,28 @@
 #define XNV_IO_H__
 
 #include <iostream>
-
 #include <XnCppWrapper.h>
+#include <hdf5.h>
+#include <H5Cpp.h>
 
-// Dump the current depth map to the specified output stream.
-void DumpDepthMap(std::ostream& os, const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd);
+class DepthMapLogger
+{
+protected:
+	H5::H5File  *p_h5_file_;
+	bool        have_created_ds_;
+	H5::DataSet depth_ds_;
+	int64_t     frame_count_;
+
+	bool EnsureDatasets_(int w, int h);
+public:
+	DepthMapLogger();
+	~DepthMapLogger();
+
+	void Open(const char* filename);
+	void Close();
+
+	// Dump the current depth map to the specified output stream.
+	void DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd);
+};
 
 #endif // XNV_IO_H__

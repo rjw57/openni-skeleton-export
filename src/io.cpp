@@ -21,6 +21,8 @@
 
 #include "io.h"
 
+using namespace H5;
+
 extern xn::UserGenerator g_UserGenerator;
 extern xn::DepthGenerator g_DepthGenerator;
 
@@ -30,8 +32,100 @@ void DumpJoint(std::ostream& os, XnUserID player, XnSkeletonJoint eJoint);
 // Convert joint id to a human-friendly string
 const char* NameJoint(XnSkeletonJoint joint);
 
-void DumpDepthMap(std::ostream& os, const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
+DepthMapLogger::DepthMapLogger()
+	: p_h5_file_(NULL), have_created_ds_(false)
+{ }
+
+DepthMapLogger::~DepthMapLogger()
 {
+	Close();
+}
+
+void DepthMapLogger::Open(const char* filename)
+{
+	// Ensure closed
+	Close();
+
+	// Open new one
+	p_h5_file_ = new H5File(filename, H5F_ACC_TRUNC);
+}
+
+void DepthMapLogger::Close()
+{
+	// this invalidates all the rest of the datasets as well
+	if(p_h5_file_) {
+		// destroy file
+		delete p_h5_file_;
+	}
+
+	// Reset pointer
+	p_h5_file_ = NULL;
+	have_created_ds_ = false;
+}
+
+// Called to ensure that datasets are created. It is called when we know what
+// the x- and y-sizes of the depth buffer are. Returns true iff dataset
+// creation succeeded.
+bool DepthMapLogger::EnsureDatasets_(int w, int h)
+{
+	if(!p_h5_file_) { return false; }
+	if(have_created_ds_) { return true; }
+
+	H5File &file(*p_h5_file_);
+
+	hsize_t chunk_dims[3] = {64, 64, 1};
+	uint16_t fill_value = 0;
+
+	// Reset frame count
+	frame_count_ = 0;
+
+	// Create depth dataset
+
+	DSetCreatPropList depth_cp;
+	depth_cp.setChunk(3, chunk_dims);
+	depth_cp.setFillValue(PredType::NATIVE_UINT16, &fill_value);
+
+	hsize_t depth_creation_dims[3] = { h, w, 1 };
+	hsize_t depth_max_dims[3] = { h, w, H5S_UNLIMITED };
+	DataSpace depth_ms(3, depth_creation_dims, depth_max_dims);
+
+	depth_ds_ = file.createDataSet("depth", PredType::NATIVE_UINT16, depth_ms, depth_cp);
+
+	have_created_ds_ = true;
+	return true;
+}
+
+void DepthMapLogger::DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
+{
+	if(!EnsureDatasets_(dmd.XRes(), dmd.YRes())) { return; }
+
+	// This frame's index is the previous frame count
+	int64_t this_frame_idx = frame_count_;
+
+	// Increment frame count
+	frame_count_ += 1;
+
+	// Extend depth dataset to have correct size
+	hsize_t depth_size[3] = { dmd.YRes(), dmd.XRes(), frame_count_ };
+	depth_ds_.extend(depth_size);
+
+	// Get depth buffer
+	const uint16_t *p_depths = dmd.Data();
+
+	// Select appropriate hyperslab for depth data from depth dataset
+	DataSpace depth_slab = depth_ds_.getSpace();
+	hsize_t depth_offset[3] = { 0, 0, this_frame_idx };
+	hsize_t depth_slab_size[3] = { dmd.YRes(), dmd.XRes(), 1 };
+	depth_slab.selectHyperslab(H5S_SELECT_SET, depth_slab_size, depth_offset);
+
+	// Write data into slab
+	hsize_t depth_creation_dims[3] = { dmd.YRes(), dmd.XRes(), 1 };
+	hsize_t depth_max_dims[3] = { dmd.YRes(), dmd.XRes(), H5S_UNLIMITED };
+	DataSpace depth_ms(3, depth_creation_dims, depth_max_dims);
+	depth_ds_.write(p_depths, PredType::NATIVE_UINT16, depth_ms, depth_slab);
+
+	std::ostream& os(std::cout);
+
 	// Start a depth map outputting the current frame id
 	os << "FRAME:" << dmd.FrameID() << '\n';
 

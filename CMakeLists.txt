@@ -16,9 +16,9 @@ find_package(GLUT REQUIRED)
 include_directories(${GLUT_INCLUDE_DIR})
 
 add_executable(skeletonexport
-    main.cpp
-    opengles.cpp
-    SceneDrawer.cpp
+    src/main.cpp
+    src/opengles.cpp
+    src/SceneDrawer.cpp
 )
 target_link_libraries(skeletonexport
     ${LIBOPENNI_LIBRARIES}

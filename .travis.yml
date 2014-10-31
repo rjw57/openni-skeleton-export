@@ -1,0 +1,12 @@
+language: cpp
+install:
+    - "sudo add-apt-repository -y ppa:eighthave/openni"
+    - "sudo apt-get update -y"
+    - "sudo apt-get install libopenni-dev freeglut3-dev libgl1-mesa-dev libglu1-mesa-dev"
+script:
+    - "mkdir build"
+    - "cd build"
+    - "cmake .."
+    - "make"
+
+# vim:sw=4:sts=2:et

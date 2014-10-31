@@ -17,7 +17,6 @@ include_directories(${GLUT_INCLUDE_DIR})
 
 add_executable(skeletonexport
     src/main.cpp
-    src/opengles.cpp
     src/SceneDrawer.cpp
 )
 target_link_libraries(skeletonexport

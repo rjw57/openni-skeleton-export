@@ -25,15 +25,7 @@
 #include <math.h>
 #include "SceneDrawer.h"
 
-#ifndef USE_GLES
-#if (XN_PLATFORM == XN_PLATFORM_MACOSX)
-	#include <GLUT/glut.h>
-#else
-	#include <GL/glut.h>
-#endif
-#else
-	#include "opengles.h"
-#endif
+#include <GL/glut.h>
 
 extern xn::UserGenerator g_UserGenerator;
 extern xn::DepthGenerator g_DepthGenerator;
@@ -120,7 +112,6 @@ XnFloat Colors[][3] =
 	{1,1,1}
 };
 XnUInt32 nColors = 10;
-#ifndef USE_GLES
 void glPrintString(void *font, char *str)
 {
 	int i,l = (int)strlen(str);
@@ -130,7 +121,6 @@ void glPrintString(void *font, char *str)
 		glutBitmapCharacter(font,*str++);
 	}
 }
-#endif
 bool DrawLimb(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2)
 {
 	if (!g_UserGenerator.GetSkeletonCap().IsTracking(player))
@@ -159,15 +149,8 @@ bool DrawLimb(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2)
 	pt[1] = joint2.position;
 
 	g_DepthGenerator.ConvertRealWorldToProjective(2, pt, pt);
-#ifndef USE_GLES
 	glVertex3i(pt[0].X, pt[0].Y, 0);
 	glVertex3i(pt[1].X, pt[1].Y, 0);
-#else
-	GLfloat verts[4] = {pt[0].X, pt[0].Y, pt[1].X, pt[1].Y};
-	glVertexPointer(2, GL_FLOAT, 0, verts);
-	glDrawArrays(GL_LINES, 0, 2);
-	glFlush();
-#endif
 
 	return true;
 }
@@ -443,7 +426,6 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 	for (int i = 0; i < nUsers; ++i)
 	{
 		std::cout << "USER:" << i << '\n';
-#ifndef USE_GLES
 		if (g_bPrintID)
 		{
 			XnPoint3D com;
@@ -480,7 +462,6 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 			glRasterPos2i(com.X, com.Y);
 			glPrintString(GLUT_BITMAP_HELVETICA_18, strLabel);
 		}
-#endif
 		if (g_bDrawSkeleton && g_UserGenerator.GetSkeletonCap().IsTracking(aUsers[i]))
 		{
 			glColor4f(1-Colors[aUsers[i]%nColors][0], 1-Colors[aUsers[i]%nColors][1], 1-Colors[aUsers[i]%nColors][2], 1);
@@ -519,9 +500,7 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 				DrawJoint(aUsers[i], XN_SKEL_RIGHT_FOOT);
 			}
 
-#ifndef USE_GLES
 			glBegin(GL_LINES);
-#endif
 
 			// Draw Limbs
 			DrawLimb(aUsers[i], XN_SKEL_HEAD, XN_SKEL_NECK);
@@ -563,9 +542,7 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 			DrawLimb(aUsers[i], XN_SKEL_RIGHT_KNEE, XN_SKEL_RIGHT_FOOT);
 
 			DrawLimb(aUsers[i], XN_SKEL_LEFT_HIP, XN_SKEL_RIGHT_HIP);
-#ifndef USE_GLES
 			glEnd();
-#endif
 		}
 	}
 

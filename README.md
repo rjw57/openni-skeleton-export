@@ -27,6 +27,24 @@ Note that the path to [SamplesConfig.xml](Data/SamplesConfig.xml) is hard-coded
 into the program and so it must be run from the build directory. (Sorry, it's a
 hack.)
 
+## Sample data
+
+The [recordings](recordings) sub-module links to a git repository with some
+sample recordings made with the sensor. If you've not checked out with
+``--recursive``, you can fetch the recordings via:
+
+```console
+$ git submodule init
+$ git submodule update
+```
+
+Then you can test the program without having a sensor:
+
+```console
+$ cd build
+$ make && ./skeletonexport ../recordings/Captured-2014-10-31.oni
+```
+
 ## Contributing
 
 Pull-requests are very welcome.

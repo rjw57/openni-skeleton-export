@@ -27,6 +27,9 @@ extern xn::DepthGenerator g_DepthGenerator;
 // Dump joint data to output
 void DumpJoint(std::ostream& os, XnUserID player, XnSkeletonJoint eJoint);
 
+// Convert joint id to a human-friendly string
+const char* NameJoint(XnSkeletonJoint joint);
+
 void DumpDepthMap(std::ostream& os, const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 {
 	// Start a depth map outputting the current frame id
@@ -121,8 +124,66 @@ void DumpJoint(std::ostream& os, XnUserID player, XnSkeletonJoint eJoint)
 
 	g_DepthGenerator.ConvertRealWorldToProjective(1, &pt, &imagePt);
 
-	os << "JOINT:" << eJoint << ',' <<
-		joint.fConfidence << ',' <<
-		pt.X << ',' << pt.Y << ',' << pt.Z << ',' <<
-		imagePt.X << ',' << imagePt.Y << '\n';
+	os << "JOINT:" << "id=" << eJoint << ',' <<
+		"name=" << NameJoint(eJoint) << ',' <<
+		"confidence=" << joint.fConfidence << ',' <<
+		"x=" << pt.X << ',' << "y=" << pt.Y << ',' << "z=" << pt.Z << ',' <<
+		"u=" << imagePt.X << ',' << "v=" << imagePt.Y << '\n';
+}
+
+const char* NameJoint(XnSkeletonJoint joint)
+{
+	switch(joint)
+	{
+		case XN_SKEL_HEAD:
+			return "head";
+		case XN_SKEL_NECK:
+			return "neck";
+		case XN_SKEL_TORSO:
+			return "torso";
+		case XN_SKEL_WAIST:
+			return "waist";
+		case XN_SKEL_LEFT_COLLAR:
+			return "leftcollar";
+		case XN_SKEL_LEFT_SHOULDER:
+			return "leftshoulder";
+		case XN_SKEL_LEFT_ELBOW:
+			return "elbow";
+		case XN_SKEL_LEFT_WRIST:
+			return "leftwrist";
+		case XN_SKEL_LEFT_HAND:
+			return "lefthand";
+		case XN_SKEL_LEFT_FINGERTIP:
+			return "leftfingertip";
+		case XN_SKEL_RIGHT_COLLAR:
+			return "rightcollar";
+		case XN_SKEL_RIGHT_SHOULDER:
+			return "rightshoulder";
+		case XN_SKEL_RIGHT_ELBOW:
+			return "rightelbow";
+		case XN_SKEL_RIGHT_WRIST:
+			return "rightwrist";
+		case XN_SKEL_RIGHT_HAND:
+			return "righthand";
+		case XN_SKEL_RIGHT_FINGERTIP:
+			return "rightfingertip";
+		case XN_SKEL_LEFT_HIP:
+			return "lefthip";
+		case XN_SKEL_LEFT_KNEE:
+			return "leftknee";
+		case XN_SKEL_LEFT_ANKLE:
+			return "leftankle";
+		case XN_SKEL_LEFT_FOOT:
+			return "leftfoot";
+		case XN_SKEL_RIGHT_HIP:
+			return "righthip";
+		case XN_SKEL_RIGHT_KNEE:
+			return "rightknee";
+		case XN_SKEL_RIGHT_ANKLE:
+			return "rightankle";
+		case XN_SKEL_RIGHT_FOOT:
+			return "rightfoot";
+		default:
+			return "unknown joint";
+	}
 }

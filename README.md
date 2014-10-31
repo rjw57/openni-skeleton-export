@@ -29,8 +29,10 @@ hack.)
 
 ## Sample data
 
-The [recordings](recordings) sub-module links to a git repository with some
-sample recordings made with the sensor. If you've not checked out with
+The
+[recordings](https://git.csx.cam.ac.uk/x/eng-sigproc/u/rjw57/misc/openi-data.git)
+sub-module links to a git repository with some sample recordings made with the
+sensor. If you've not checked out with
 ``--recursive``, you can fetch the recordings via:
 
 ```console

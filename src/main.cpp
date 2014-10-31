@@ -416,7 +416,7 @@ int main(int argc, char **argv)
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
-	g_Log.Open("log.h5");
+	g_Log.Open("log.h5", "log.txt");
 
 	glInit(&argc, argv);
 	glutMainLoop();

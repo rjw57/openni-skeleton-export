@@ -41,17 +41,22 @@ DepthMapLogger::~DepthMapLogger()
 	Close();
 }
 
-void DepthMapLogger::Open(const char* filename)
+void DepthMapLogger::Open(const char* h5_filename, const char* log_filename)
 {
 	// Ensure closed
 	Close();
 
-	// Open new one
-	p_h5_file_ = new H5File(filename, H5F_ACC_TRUNC);
+	// Open new ones
+	log_stream_.open(log_filename, std::ofstream::out | std::ofstream::binary);
+	p_h5_file_ = new H5File(h5_filename, H5F_ACC_TRUNC);
 }
 
 void DepthMapLogger::Close()
 {
+	if(log_stream_.is_open()) {
+		log_stream_.close();
+	}
+
 	// this invalidates all the rest of the datasets as well
 	if(p_h5_file_) {
 		// destroy file
@@ -111,7 +116,7 @@ void DepthMapLogger::DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneM
 	const uint16_t *p_labels = smd.Data();
 
 	hsize_t creation_dims[3] = { dmd.YRes(), dmd.XRes(), 1 };
-	hsize_t max_dims[3] = { dmd.YRes(), dmd.XRes(), H5S_UNLIMITED };
+	hsize_t max_dims[3] = { dmd.YRes(), dmd.XRes(), 1 };
 	DataSpace mem_space(3, creation_dims, max_dims);
 
 	// Extend depth and label dataset to have correct size
@@ -137,10 +142,10 @@ void DepthMapLogger::DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneM
 	// Write label data into slab
 	label_ds_.write(p_labels, PredType::NATIVE_UINT16, mem_space, label_slab);
 
-	std::ostream& os(std::cout);
+	std::ostream& os(log_stream_);
 
 	// Start a depth map outputting the current frame id
-	os << "FRAME:" << dmd.FrameID() << '\n';
+	os << "FRAME:" << "idx=" << this_frame_idx << ',' << "id=" << dmd.FrameID() << '\n';
 
 	// Dump each user in turn
 	char strLabel[50] = "";

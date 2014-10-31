@@ -1,6 +1,6 @@
 # Skeleton tracking utility
 
-[![Build Status](https://travis-ci.org/rjw57/openni-skeleton-export.svg)](https://travis-ci.org/rjw57/openni-skeleton-export)
+[![Build Status](https://travis-ci.org/rjw57/openni-skeleton-export.svg?branch=master)](https://travis-ci.org/rjw57/openni-skeleton-export)
 
 This is a silly little hack built atop
 [OpenNi](https://github.com/OpenNI/OpenNI)'s user tracking example which is

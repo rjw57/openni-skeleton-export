@@ -47,21 +47,7 @@ XnBool g_bPrintState = TRUE;
 XnBool g_bPrintFrameID = FALSE;
 XnBool g_bMarkJoints = TRUE;
 
-#ifndef USE_GLES
-#if (XN_PLATFORM == XN_PLATFORM_MACOSX)
-	#include <GLUT/glut.h>
-#else
-	#include <GL/glut.h>
-#endif
-#else
-	#include "opengles.h"
-#endif
-
-#ifdef USE_GLES
-static EGLDisplay display = EGL_NO_DISPLAY;
-static EGLSurface surface = EGL_NO_SURFACE;
-static EGLContext context = EGL_NO_CONTEXT;
-#endif
+#include <GL/glut.h>
 
 #define GL_WIN_SIZE_X 720
 #define GL_WIN_SIZE_Y 480
@@ -213,11 +199,7 @@ void glutDisplay (void)
 	xn::SceneMetaData sceneMD;
 	xn::DepthMetaData depthMD;
 	g_DepthGenerator.GetMetaData(depthMD);
-#ifndef USE_GLES
 	glOrtho(0, depthMD.XRes(), depthMD.YRes(), 0, -1.0, 1.0);
-#else
-	glOrthof(0, depthMD.XRes(), depthMD.YRes(), 0, -1.0, 1.0);
-#endif
 
 	glDisable(GL_TEXTURE_2D);
 
@@ -232,12 +214,9 @@ void glutDisplay (void)
 		g_UserGenerator.GetUserPixels(0, sceneMD);
 		DrawDepthMap(depthMD, sceneMD);
 
-#ifndef USE_GLES
 	glutSwapBuffers();
-#endif
 }
 
-#ifndef USE_GLES
 void glutIdle (void)
 {
 	if (g_bQuit) {
@@ -312,7 +291,6 @@ void glInit (int * pargc, char ** argv)
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
 }
-#endif // USE_GLES
 
 #define SAMPLE_XML_PATH "../Data/SamplesConfig.xml"
 
@@ -432,28 +410,6 @@ int main(int argc, char **argv)
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
-#ifndef USE_GLES
 	glInit(&argc, argv);
 	glutMainLoop();
-#else
-	if (!opengles_init(GL_WIN_SIZE_X, GL_WIN_SIZE_Y, &display, &surface, &context))
-	{
-		printf("Error initializing opengles\n");
-		CleanupExit();
-	}
-
-	glDisable(GL_DEPTH_TEST);
-	glEnable(GL_TEXTURE_2D);
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-
-	while (!g_bQuit)
-	{
-		glutDisplay();
-		eglSwapBuffers(display, surface);
-	}
-	opengles_shutdown(display, surface, context);
-
-	CleanupExit();
-#endif
 }

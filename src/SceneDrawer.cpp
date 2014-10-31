@@ -203,8 +203,6 @@ void PrintJoint(XnUserID player, XnSkeletonJoint eJoint)
 }
 void DrawJoint(XnUserID player, XnSkeletonJoint eJoint)
 {
-	PrintJoint(player, eJoint);
-
 	if (!g_UserGenerator.GetSkeletonCap().IsTracking(player))
 	{
 		printf("not tracked!\n");
@@ -291,8 +289,6 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 	float bottomRightX;
 	float texXpos;
 	float texYpos;
-
-	std::cout << "FRAME\n";
 
 	if(!bInitialized)
 	{
@@ -425,7 +421,6 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 	g_UserGenerator.GetUsers(aUsers, nUsers);
 	for (int i = 0; i < nUsers; ++i)
 	{
-		std::cout << "USER:" << i << '\n';
 		if (g_bPrintID)
 		{
 			XnPoint3D com;

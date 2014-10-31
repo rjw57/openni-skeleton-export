@@ -25,6 +25,10 @@ Note that the path to [SamplesConfig.xml](Data/SamplesConfig.xml) is hard-coded
 into the program and so it must be run from the build directory. (Sorry, it's a
 hack.)
 
+## Contributing
+
+Pull-requests are very welcome.
+
 ## License
 
 This software is Apache licensed like the original OpenNi code. See the

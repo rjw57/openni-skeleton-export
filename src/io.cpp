@@ -81,15 +81,16 @@ bool DepthMapLogger::EnsureDatasets_(int w, int h)
 
 	// Create depth dataset
 
-	DSetCreatPropList depth_cp;
-	depth_cp.setChunk(3, chunk_dims);
-	depth_cp.setFillValue(PredType::NATIVE_UINT16, &fill_value);
+	DSetCreatPropList creat_props;
+	creat_props.setChunk(3, chunk_dims);
+	creat_props.setFillValue(PredType::NATIVE_UINT16, &fill_value);
 
-	hsize_t depth_creation_dims[3] = { h, w, 1 };
-	hsize_t depth_max_dims[3] = { h, w, H5S_UNLIMITED };
-	DataSpace depth_ms(3, depth_creation_dims, depth_max_dims);
+	hsize_t creation_dims[3] = { h, w, 1 };
+	hsize_t max_dims[3] = { h, w, H5S_UNLIMITED };
+	DataSpace mem_space(3, creation_dims, max_dims);
 
-	depth_ds_ = file.createDataSet("depth", PredType::NATIVE_UINT16, depth_ms, depth_cp);
+	depth_ds_ = file.createDataSet("depth", PredType::NATIVE_UINT16, mem_space, creat_props);
+	label_ds_ = file.createDataSet("label", PredType::NATIVE_UINT16, mem_space, creat_props);
 
 	have_created_ds_ = true;
 	return true;
@@ -105,12 +106,18 @@ void DepthMapLogger::DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneM
 	// Increment frame count
 	frame_count_ += 1;
 
-	// Extend depth dataset to have correct size
-	hsize_t depth_size[3] = { dmd.YRes(), dmd.XRes(), frame_count_ };
-	depth_ds_.extend(depth_size);
-
-	// Get depth buffer
+	// Get depth and label buffers
 	const uint16_t *p_depths = dmd.Data();
+	const uint16_t *p_labels = smd.Data();
+
+	hsize_t creation_dims[3] = { dmd.YRes(), dmd.XRes(), 1 };
+	hsize_t max_dims[3] = { dmd.YRes(), dmd.XRes(), H5S_UNLIMITED };
+	DataSpace mem_space(3, creation_dims, max_dims);
+
+	// Extend depth and label dataset to have correct size
+	hsize_t new_size[3] = { dmd.YRes(), dmd.XRes(), frame_count_ };
+	depth_ds_.extend(new_size);
+	label_ds_.extend(new_size);
 
 	// Select appropriate hyperslab for depth data from depth dataset
 	DataSpace depth_slab = depth_ds_.getSpace();
@@ -118,11 +125,17 @@ void DepthMapLogger::DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneM
 	hsize_t depth_slab_size[3] = { dmd.YRes(), dmd.XRes(), 1 };
 	depth_slab.selectHyperslab(H5S_SELECT_SET, depth_slab_size, depth_offset);
 
-	// Write data into slab
-	hsize_t depth_creation_dims[3] = { dmd.YRes(), dmd.XRes(), 1 };
-	hsize_t depth_max_dims[3] = { dmd.YRes(), dmd.XRes(), H5S_UNLIMITED };
-	DataSpace depth_ms(3, depth_creation_dims, depth_max_dims);
-	depth_ds_.write(p_depths, PredType::NATIVE_UINT16, depth_ms, depth_slab);
+	// Write depth data into slab
+	depth_ds_.write(p_depths, PredType::NATIVE_UINT16, mem_space, depth_slab);
+
+	// Select appropriate hyperslab for label data from label dataset
+	DataSpace label_slab = label_ds_.getSpace();
+	hsize_t label_offset[3] = { 0, 0, this_frame_idx };
+	hsize_t label_slab_size[3] = { dmd.YRes(), dmd.XRes(), 1 };
+	label_slab.selectHyperslab(H5S_SELECT_SET, label_slab_size, label_offset);
+
+	// Write label data into slab
+	label_ds_.write(p_labels, PredType::NATIVE_UINT16, mem_space, label_slab);
 
 	std::ostream& os(std::cout);
 

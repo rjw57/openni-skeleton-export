@@ -31,8 +31,10 @@ class DepthMapLogger
 protected:
 	H5::H5File  *p_h5_file_;
 	bool        have_created_ds_;
-	H5::DataSet depth_ds_;
 	int64_t     frame_count_;
+
+	H5::DataSet depth_ds_;
+	H5::DataSet label_ds_;
 
 	bool EnsureDatasets_(int w, int h);
 public:

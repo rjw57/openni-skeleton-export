@@ -45,7 +45,7 @@ XnBool g_bPrintID = TRUE;
 XnBool g_bPrintState = TRUE;
 
 XnBool g_bPrintFrameID = FALSE;
-XnBool g_bMarkJoints = FALSE;
+XnBool g_bMarkJoints = TRUE;
 
 #ifndef USE_GLES
 #if (XN_PLATFORM == XN_PLATFORM_MACOSX)

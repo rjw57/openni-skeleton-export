@@ -29,7 +29,7 @@ target_link_libraries(skeletonexport
     ${LIBOPENNI_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${GLUT_LIBRARIES}
-    ${HDF5_CXX_LIBRARIES}
+    ${HDF5_LIBRARIES}
 )
 
 # vim:sw=4:sts=4:et

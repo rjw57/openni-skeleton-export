@@ -15,6 +15,11 @@ include_directories(${OPENGL_INCLUDE_DIR})
 find_package(GLUT REQUIRED)
 include_directories(${GLUT_INCLUDE_DIR})
 
+# Find HDF5 C++ bindings
+find_package(HDF5 REQUIRED COMPONENTS CXX)
+include_directories(${HDF5_INCLUDE_DIRS})
+add_definitions(${HDF5_DEFINITIONS})
+
 add_executable(skeletonexport
     src/main.cpp
     src/io.cpp
@@ -24,6 +29,7 @@ target_link_libraries(skeletonexport
     ${LIBOPENNI_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${GLUT_LIBRARIES}
+    ${HDF5_LIBRARIES}
 )
 
 # vim:sw=4:sts=4:et

@@ -21,10 +21,12 @@
 //---------------------------------------------------------------------------
 // Includes
 //---------------------------------------------------------------------------
+#include <iostream>
 #include <XnOpenNI.h>
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
 #include "SceneDrawer.h"
+#include "io.h"
 #include <XnPropNames.h>
 
 //---------------------------------------------------------------------------
@@ -213,6 +215,9 @@ void glutDisplay (void)
 		g_DepthGenerator.GetMetaData(depthMD);
 		g_UserGenerator.GetUserPixels(0, sceneMD);
 		DrawDepthMap(depthMD, sceneMD);
+
+		// HACK
+		DumpDepthMap(std::cout, depthMD, sceneMD);
 
 	glutSwapBuffers();
 }

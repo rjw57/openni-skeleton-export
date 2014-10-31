@@ -21,6 +21,7 @@
 //---------------------------------------------------------------------------
 // Includes
 //---------------------------------------------------------------------------
+#include <iostream>
 #include <math.h>
 #include "SceneDrawer.h"
 
@@ -185,8 +186,42 @@ void drawCircle(float x, float y, float radius)
  
    glEnd();
 }
+void PrintJoint(XnUserID player, XnSkeletonJoint eJoint)
+{
+	if (!g_UserGenerator.GetSkeletonCap().IsTracking(player))
+	{
+		printf("not tracked!\n");
+		return;
+	}
+
+	if (!g_UserGenerator.GetSkeletonCap().IsJointActive(eJoint))
+	{
+		return;
+	}
+
+	XnSkeletonJointPosition joint;
+	g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(player, eJoint, joint);
+
+	if (joint.fConfidence < 0.5)
+	{
+		return;
+	}
+
+	XnPoint3D pt, imagePt;
+	pt = joint.position;
+
+	g_DepthGenerator.ConvertRealWorldToProjective(1, &pt, &imagePt);
+
+	std::cout << "JOINT:" << eJoint << ',' <<
+		pt.X << ',' << pt.Y << ',' << pt.Z << ',' <<
+		imagePt.X << ',' << imagePt.Y << '\n';
+
+	// drawCircle(pt.X, pt.Y, 2);
+}
 void DrawJoint(XnUserID player, XnSkeletonJoint eJoint)
 {
+	PrintJoint(player, eJoint);
+
 	if (!g_UserGenerator.GetSkeletonCap().IsTracking(player))
 	{
 		printf("not tracked!\n");
@@ -273,6 +308,8 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 	float bottomRightX;
 	float texXpos;
 	float texYpos;
+
+	std::cout << "FRAME\n";
 
 	if(!bInitialized)
 	{
@@ -405,6 +442,7 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 	g_UserGenerator.GetUsers(aUsers, nUsers);
 	for (int i = 0; i < nUsers; ++i)
 	{
+		std::cout << "USER:" << i << '\n';
 #ifndef USE_GLES
 		if (g_bPrintID)
 		{

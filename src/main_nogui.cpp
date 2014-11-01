@@ -47,6 +47,9 @@ DepthMapLogger g_Log;
 //---------------------------------------------------------------------------
 // Forward declrarations
 //---------------------------------------------------------------------------
+bool InitialiseContextFromRecording(const char* recordingFilename);
+bool InitialiseContextFromXmlConfig(const char* xmlConfigFilename);
+
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& /*generator*/, XnUserID nId, void* /*pCookie*/);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& /*generator*/, XnUserID nId, void* /*pCookie*/);
 void XN_CALLBACK_TYPE UserPose_PoseDetected(xn::PoseDetectionCapability& /*capability*/, const XnChar* strPose, XnUserID nId, void* /*pCookie*/);
@@ -66,36 +69,29 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationComplete(xn::SkeletonCapability
 		return nRetVal;												\
 	}
 
+#define CHECK_RC_RETURNING(rv, nRetVal, what)										\
+	if (nRetVal != XN_STATUS_OK)									\
+	{																\
+		printf("%s failed: %s\n", what, xnGetStatusString(nRetVal));\
+		return rv;												\
+	}
+
 int main(int argc, char **argv)
 {
 	XnStatus nRetVal = XN_STATUS_OK;
 
 	if (argc > 1)
 	{
-		nRetVal = g_Context.Init();
-		CHECK_RC(nRetVal, "Init");
-		nRetVal = g_Context.OpenFileRecording(argv[1], g_Player);
-		if (nRetVal != XN_STATUS_OK)
+		if(!InitialiseContextFromRecording(argv[1]))
 		{
-			printf("Can't open recording %s: %s\n", argv[1], xnGetStatusString(nRetVal));
-			return 1;
+			return EXIT_FAILURE;
 		}
 	}
 	else
 	{
-		xn::EnumerationErrors errors;
-		nRetVal = g_Context.InitFromXmlFile(SAMPLE_XML_PATH, g_scriptNode, &errors);
-		if (nRetVal == XN_STATUS_NO_NODE_PRESENT)
+		if(!InitialiseContextFromXmlConfig(SAMPLE_XML_PATH))
 		{
-			XnChar strError[1024];
-			errors.ToString(strError, 1024);
-			printf("%s\n", strError);
-			return (nRetVal);
-		}
-		else if (nRetVal != XN_STATUS_OK)
-		{
-			printf("Open failed: %s\n", xnGetStatusString(nRetVal));
-			return (nRetVal);
+			return EXIT_FAILURE;
 		}
 	}
 
@@ -195,6 +191,43 @@ int main(int argc, char **argv)
 	g_Context.Release();
 
 	return EXIT_SUCCESS;
+}
+
+bool InitialiseContextFromRecording(const char* recordingFilename)
+{
+	XnStatus nRetVal = XN_STATUS_OK;
+
+	nRetVal = g_Context.Init();
+	CHECK_RC_RETURNING(false, nRetVal, "Init");
+	nRetVal = g_Context.OpenFileRecording(recordingFilename, g_Player);
+	if (nRetVal != XN_STATUS_OK)
+	{
+		printf("Can't open recording %s: %s\n", recordingFilename, xnGetStatusString(nRetVal));
+		return false;
+	}
+	return true;
+}
+
+bool InitialiseContextFromXmlConfig(const char* xmlConfigFilename)
+{
+	XnStatus nRetVal = XN_STATUS_OK;
+	xn::EnumerationErrors errors;
+
+	nRetVal = g_Context.InitFromXmlFile(xmlConfigFilename, g_scriptNode, &errors);
+	if (nRetVal == XN_STATUS_NO_NODE_PRESENT)
+	{
+		XnChar strError[1024];
+		errors.ToString(strError, 1024);
+		printf("%s\n", strError);
+		return false;
+	}
+	else if (nRetVal != XN_STATUS_OK)
+	{
+		printf("Open failed: %s\n", xnGetStatusString(nRetVal));
+		return false;
+	}
+
+	return true;
 }
 
 // Callback: New user was detected

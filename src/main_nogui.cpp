@@ -45,7 +45,7 @@ XnChar g_strPose[20] = "";
 DepthMapLogger g_Log;
 
 //---------------------------------------------------------------------------
-// Forward declrarations
+// Forward declarations
 //---------------------------------------------------------------------------
 bool InitialiseContextFromRecording(const char* recordingFilename);
 bool InitialiseContextFromXmlConfig(const char* xmlConfigFilename);

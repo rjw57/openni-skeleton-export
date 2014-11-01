@@ -21,6 +21,7 @@
 //---------------------------------------------------------------------------
 // Includes
 //---------------------------------------------------------------------------
+#include <cstdlib> // for EXIT_SUCCESS
 #include <iostream>
 #include <XnOpenNI.h>
 #include <XnCodecIDs.h>

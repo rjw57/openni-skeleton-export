@@ -90,8 +90,9 @@ bool DepthMapLogger::EnsureDatasets_(int w, int h)
 	creat_props.setChunk(3, chunk_dims);
 	creat_props.setFillValue(PredType::NATIVE_UINT16, &fill_value);
 
-	hsize_t creation_dims[3] = { h, w, 1 };
-	hsize_t max_dims[3] = { h, w, H5S_UNLIMITED };
+	hsize_t rows{static_cast<hsize_t>(h)}, cols{static_cast<hsize_t>(w)};
+	hsize_t creation_dims[3] = { rows, cols, 1 };
+	hsize_t max_dims[3] = { rows, cols, H5S_UNLIMITED };
 	DataSpace mem_space(3, creation_dims, max_dims);
 
 	depth_ds_ = file.createDataSet("depth", PredType::NATIVE_UINT16, mem_space, creat_props);
@@ -106,7 +107,7 @@ void DepthMapLogger::DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneM
 	if(!EnsureDatasets_(dmd.XRes(), dmd.YRes())) { return; }
 
 	// This frame's index is the previous frame count
-	int64_t this_frame_idx = frame_count_;
+	hsize_t this_frame_idx = static_cast<hsize_t>(frame_count_);
 
 	// Increment frame count
 	frame_count_ += 1;
@@ -120,7 +121,7 @@ void DepthMapLogger::DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneM
 	DataSpace mem_space(3, creation_dims, max_dims);
 
 	// Extend depth and label dataset to have correct size
-	hsize_t new_size[3] = { dmd.YRes(), dmd.XRes(), frame_count_ };
+	hsize_t new_size[3] = { dmd.YRes(), dmd.XRes(), static_cast<hsize_t>(frame_count_) };
 	depth_ds_.extend(new_size);
 	label_ds_.extend(new_size);
 

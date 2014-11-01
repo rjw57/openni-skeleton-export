@@ -40,39 +40,12 @@ xn::Player g_Player;
 
 XnBool g_bNeedPose = FALSE;
 XnChar g_strPose[20] = "";
-XnBool g_bDrawBackground = TRUE;
-XnBool g_bDrawPixels = TRUE;
-XnBool g_bDrawSkeleton = TRUE;
-XnBool g_bPrintID = TRUE;
-XnBool g_bPrintState = TRUE;
-
-XnBool g_bPrintFrameID = FALSE;
-XnBool g_bMarkJoints = TRUE;
-
-#define GL_WIN_SIZE_X 720
-#define GL_WIN_SIZE_Y 480
-
-XnBool g_bPause = false;
-XnBool g_bRecord = false;
-
-XnBool g_bQuit = false;
 
 DepthMapLogger g_Log;
 
 //---------------------------------------------------------------------------
 // Code
 //---------------------------------------------------------------------------
-
-void CleanupExit()
-{
-	g_scriptNode.Release();
-	g_DepthGenerator.Release();
-	g_UserGenerator.Release();
-	g_Player.Release();
-	g_Context.Release();
-
-	exit (1);
-}
 
 // Callback: New user was detected
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& /*generator*/, XnUserID nId, void* /*pCookie*/)
@@ -143,86 +116,6 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationComplete(xn::SkeletonCapability
 		}
 	}
 }
-
-#define XN_CALIBRATION_FILE_NAME "UserCalibration.bin"
-
-// Save calibration to file
-void SaveCalibration()
-{
-	XnUserID aUserIDs[20] = {0};
-	XnUInt16 nUsers = 20;
-	g_UserGenerator.GetUsers(aUserIDs, nUsers);
-	for (int i = 0; i < nUsers; ++i)
-	{
-		// Find a user who is already calibrated
-		if (g_UserGenerator.GetSkeletonCap().IsCalibrated(aUserIDs[i]))
-		{
-			// Save user's calibration to file
-			g_UserGenerator.GetSkeletonCap().SaveCalibrationDataToFile(aUserIDs[i], XN_CALIBRATION_FILE_NAME);
-			break;
-		}
-	}
-}
-// Load calibration from file
-void LoadCalibration()
-{
-	XnUserID aUserIDs[20] = {0};
-	XnUInt16 nUsers = 20;
-	g_UserGenerator.GetUsers(aUserIDs, nUsers);
-	for (int i = 0; i < nUsers; ++i)
-	{
-		// Find a user who isn't calibrated or currently in pose
-		if (g_UserGenerator.GetSkeletonCap().IsCalibrated(aUserIDs[i])) continue;
-		if (g_UserGenerator.GetSkeletonCap().IsCalibrating(aUserIDs[i])) continue;
-
-		// Load user's calibration from file
-		XnStatus rc = g_UserGenerator.GetSkeletonCap().LoadCalibrationDataFromFile(aUserIDs[i], XN_CALIBRATION_FILE_NAME);
-		if (rc == XN_STATUS_OK)
-		{
-			// Make sure state is coherent
-			g_UserGenerator.GetPoseDetectionCap().StopPoseDetection(aUserIDs[i]);
-			g_UserGenerator.GetSkeletonCap().StartTracking(aUserIDs[i]);
-		}
-		break;
-	}
-}
-
-#if 0
-// this function is called each frame
-void glutDisplay (void)
-{
-
-	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	// Setup the OpenGL viewpoint
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-
-	xn::SceneMetaData sceneMD;
-	xn::DepthMetaData depthMD;
-	g_DepthGenerator.GetMetaData(depthMD);
-	glOrtho(0, depthMD.XRes(), depthMD.YRes(), 0, -1.0, 1.0);
-
-	glDisable(GL_TEXTURE_2D);
-
-	if (!g_bPause)
-	{
-		// Read next available data
-		g_Context.WaitOneUpdateAll(g_UserGenerator);
-	}
-
-		// Process the data
-		g_DepthGenerator.GetMetaData(depthMD);
-		g_UserGenerator.GetUserPixels(0, sceneMD);
-		DrawDepthMap(depthMD, sceneMD);
-
-		// HACK
-		g_Log.DumpDepthMap(depthMD, sceneMD);
-
-	glutSwapBuffers();
-}
-#endif
 
 #define SAMPLE_XML_PATH "../Data/SamplesConfig.xml"
 
@@ -339,11 +232,11 @@ int main(int argc, char **argv)
 	g_Log.Open("log.h5", "log.txt");
 
 	// Main event loop
+	xn::SceneMetaData sceneMD;
+	xn::DepthMetaData depthMD;
 	while (!xnOSWasKeyboardHit())
 	{
-		xn::SceneMetaData sceneMD;
-		xn::DepthMetaData depthMD;
-
+		// Wait for an update
 		g_Context.WaitOneUpdateAll(g_UserGenerator);
 
 		// Process the data

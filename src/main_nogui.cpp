@@ -245,11 +245,11 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationComplete(xn::SkeletonCapability
 	{
 		// Calibration failed
 		printf("%d Calibration failed for user %d\n", epochTime, nId);
-        if(eStatus==XN_CALIBRATION_STATUS_MANUAL_ABORT)
-        {
-            printf("Manual abort occured, stop attempting to calibrate!");
-            return;
-        }
+		if(eStatus==XN_CALIBRATION_STATUS_MANUAL_ABORT)
+		{
+			printf("Manual abort occured, stop attempting to calibrate!");
+			return;
+		}
 		if (g_bNeedPose)
 		{
 			g_UserGenerator.GetPoseDetectionCap().StartPoseDetection(g_strPose, nId);

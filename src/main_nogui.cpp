@@ -185,6 +185,15 @@ int main(int argc, char **argv)
 		// Log the data
 		g_Log.DumpDepthMap(depthMD, sceneMD);
 	}
+
+	// Clean up all resources
+	g_scriptNode.Release();
+	g_DepthGenerator.Release();
+	g_UserGenerator.Release();
+	g_Player.Release();
+	g_Context.Release();
+
+	return EXIT_SUCCESS;
 }
 
 // Callback: New user was detected

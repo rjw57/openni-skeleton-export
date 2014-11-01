@@ -49,6 +49,7 @@ DepthMapLogger g_Log;
 //---------------------------------------------------------------------------
 bool InitialiseContextFromRecording(const char* recordingFilename);
 bool InitialiseContextFromXmlConfig(const char* xmlConfigFilename);
+bool EnsureDepthGenerator();
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& /*generator*/, XnUserID nId, void* /*pCookie*/);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& /*generator*/, XnUserID nId, void* /*pCookie*/);
@@ -95,37 +96,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
-	if (nRetVal != XN_STATUS_OK)
-	{
-		printf("No depth generator found. Using a default one...");
-		xn::MockDepthGenerator mockDepth;
-		nRetVal = mockDepth.Create(g_Context);
-		CHECK_RC(nRetVal, "Create mock depth");
-
-		// set some defaults
-		XnMapOutputMode defaultMode;
-		defaultMode.nXRes = 320;
-		defaultMode.nYRes = 240;
-		defaultMode.nFPS = 30;
-		nRetVal = mockDepth.SetMapOutputMode(defaultMode);
-		CHECK_RC(nRetVal, "set default mode");
-
-		// set FOV
-		XnFieldOfView fov;
-		fov.fHFOV = 1.0225999419141749;
-		fov.fVFOV = 0.79661567681716894;
-		nRetVal = mockDepth.SetGeneralProperty(XN_PROP_FIELD_OF_VIEW, sizeof(fov), &fov);
-		CHECK_RC(nRetVal, "set FOV");
-
-		XnUInt32 nDataSize = defaultMode.nXRes * defaultMode.nYRes * sizeof(XnDepthPixel);
-		XnDepthPixel* pData = (XnDepthPixel*)xnOSCallocAligned(nDataSize, 1, XN_DEFAULT_MEM_ALIGN);
-
-		nRetVal = mockDepth.SetData(1, 0, nDataSize, pData);
-		CHECK_RC(nRetVal, "set empty depth map");
-
-		g_DepthGenerator = mockDepth;
-	}
+	EnsureDepthGenerator();
 
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
 	if (nRetVal != XN_STATUS_OK)
@@ -225,6 +196,45 @@ bool InitialiseContextFromXmlConfig(const char* xmlConfigFilename)
 	{
 		printf("Open failed: %s\n", xnGetStatusString(nRetVal));
 		return false;
+	}
+
+	return true;
+}
+
+bool EnsureDepthGenerator()
+{
+	XnStatus nRetVal = XN_STATUS_OK;
+
+	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
+	if (nRetVal != XN_STATUS_OK)
+	{
+		printf("No depth generator found. Using a default one...");
+		xn::MockDepthGenerator mockDepth;
+		nRetVal = mockDepth.Create(g_Context);
+		CHECK_RC_RETURNING(false, nRetVal, "Create mock depth");
+
+		// set some defaults
+		XnMapOutputMode defaultMode;
+		defaultMode.nXRes = 320;
+		defaultMode.nYRes = 240;
+		defaultMode.nFPS = 30;
+		nRetVal = mockDepth.SetMapOutputMode(defaultMode);
+		CHECK_RC_RETURNING(false, nRetVal, "set default mode");
+
+		// set FOV
+		XnFieldOfView fov;
+		fov.fHFOV = 1.0225999419141749;
+		fov.fVFOV = 0.79661567681716894;
+		nRetVal = mockDepth.SetGeneralProperty(XN_PROP_FIELD_OF_VIEW, sizeof(fov), &fov);
+		CHECK_RC_RETURNING(false, nRetVal, "set FOV");
+
+		XnUInt32 nDataSize = defaultMode.nXRes * defaultMode.nYRes * sizeof(XnDepthPixel);
+		XnDepthPixel* pData = (XnDepthPixel*)xnOSCallocAligned(nDataSize, 1, XN_DEFAULT_MEM_ALIGN);
+
+		nRetVal = mockDepth.SetData(1, 0, nDataSize, pData);
+		CHECK_RC_RETURNING(false, nRetVal, "set empty depth map");
+
+		g_DepthGenerator = mockDepth;
 	}
 
 	return true;

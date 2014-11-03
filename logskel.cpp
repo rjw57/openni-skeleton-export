@@ -53,7 +53,7 @@ const option::Descriptor g_Usage[] =
 	{ HELP,     0, "h?", "help",     option::Arg::None, 	"  --help, -h, -?  \tPrint a brief usage summary." },
 	{ CAPTURE,  0, "c",  "capture",  Arg::Required,		"  --capture, -c CONFIG  \tCapture from sensor using specified XML config." },
 	{ PLAYBACK, 0, "p",  "playback", Arg::Required,		"  --playback, -p RECORDING  \tPlayback a .oni recording." },
-	{ LOG,      0, "l",  "log",      Arg::Required,		"  --log, -l PREFIX  \tLog results to PREFIX.{h5,txt}." },
+	{ LOG,      0, "l",  "log",      Arg::Required,		"  --log, -l FILE  \tLog results to FILE in HDF5 format." },
 	{ DURATION, 0, "d",  "duration", Arg::Numeric,		"  --duration, -d SECONDS  \tRun main loop for the specified duration." },
 
 	{ 0,0,0,0,0,0 } // Zero record marking end of array.
@@ -94,10 +94,9 @@ int main(int argc, char **argv)
 	}
 
 	if (options[LOG]) {
-		std::string logfile_prefix(options[LOG].arg);
-		std::string h5_logfile(logfile_prefix + ".h5"), txt_logfile(logfile_prefix + ".txt");
-		std::cout << "Logging to " << h5_logfile << " and " << txt_logfile << '\n';
-		g_Log.Open(h5_logfile.c_str(), txt_logfile.c_str());
+		std::string h5_logfile(options[LOG].arg);
+		std::cout << "Logging to " << h5_logfile << '\n';
+		g_Log.Open(h5_logfile.c_str());
 	}
 
 	// Set up capture device

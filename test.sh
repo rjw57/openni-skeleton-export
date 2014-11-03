@@ -30,44 +30,27 @@ if [ ! -x "${LOGSKEL}" ]; then
 fi
 
 # Try running logger
-LOG_PREFIX="/tmp/logskel"
-"${LOGSKEL}" --playback "${RECORDINGS_DIR}/Captured-2014-10-31.oni" --duration 8 --log ${LOG_PREFIX}
+LOG_FILE="/tmp/logskel"
+"${LOGSKEL}" --playback "${RECORDINGS_DIR}/Captured-2014-10-31.oni" --duration 8 --log ${LOG_FILE}
 if [ $? -ne 0 ]; then
 	echo "Logging command failed."
 	exit 1
 fi
 
 # Check output exists
-echo "Checking ${LOG_PREFIX}.h5 exists..."
-if [ ! -s "${LOG_PREFIX}.h5" ]; then
-	echo "${LOG_PREFIX}.h5 does not exist or has zero size"
+echo "Checking ${LOG_FILE} exists..."
+if [ ! -s "${LOG_FILE}" ]; then
+	echo "${LOG_FILE} does not exist or has zero size"
 	exit 1
 fi
-echo "Checking ${LOG_PREFIX}.txt exists..."
-if [ ! -s "${LOG_PREFIX}.txt" ]; then
-	echo "${LOG_PREFIX}.txt does not exist or has zero size"
-	exit 1
-fi
-echo "Checking ${LOG_PREFIX}.h5 is parseable..."
-_h5ls_out=$(${H5LS} "${LOG_PREFIX}.h5")
-echo "Output of h5ls:"
-echo "${_h5ls_out}"
-echo "Checking depth in ${LOG_PREFIX}.h5"
-if ! echo "${_h5ls_out}" | grep -q '^depth'; then
+echo "Checking ${LOG_FILE} is parseable..."
+_h5ls_out=$(${H5LS} -r "${LOG_FILE}")
+echo "Checking depth in ${LOG_FILE}"
+if ! echo "${_h5ls_out}" | grep -q 'frame_000050/depth'; then
 	echo "depth not present in h5ls output"
 	exit 1
 fi
-if ! echo "${_h5ls_out}" | grep -q '^label'; then
+if ! echo "${_h5ls_out}" | grep -q 'frame_000050/label'; then
 	echo "label not present in h5ls output"
-	exit 1
-fi
-
-echo "Checking ${LOG_PREFIX}.txt"
-if ! grep -q '^USER:' "${LOG_PREFIX}.txt"; then
-	echo "No USER: line in output"
-	exit 1
-fi
-if ! grep -q '^JOINT:' "${LOG_PREFIX}.txt"; then
-	echo "No JOINT: line in output"
 	exit 1
 fi

@@ -26,127 +26,161 @@ using namespace H5;
 extern xn::UserGenerator g_UserGenerator;
 extern xn::DepthGenerator g_DepthGenerator;
 
+// A structure describing a joint
+struct Joint {
+	int id;
+	float confidence;
+	float x, y, z; // real-world
+	float u, v, w; // projective
+};
+
 // Dump joint data to output
-void DumpJoint(std::ostream& os, XnUserID player, XnSkeletonJoint eJoint);
+bool DumpJoint(XnUserID player, XnSkeletonJoint eJoint, Joint& out_joint);
 
 // Convert joint id to a human-friendly string
 const char* NameJoint(XnSkeletonJoint joint);
 
+// An array of all joint types
+const XnSkeletonJoint g_JointTypes[] = {
+	XN_SKEL_HEAD, XN_SKEL_NECK, XN_SKEL_TORSO, XN_SKEL_WAIST,
+	XN_SKEL_LEFT_COLLAR, XN_SKEL_LEFT_SHOULDER, XN_SKEL_LEFT_ELBOW, XN_SKEL_LEFT_WRIST,
+	XN_SKEL_LEFT_HAND, XN_SKEL_LEFT_FINGERTIP, XN_SKEL_RIGHT_COLLAR, XN_SKEL_RIGHT_SHOULDER,
+	XN_SKEL_RIGHT_ELBOW, XN_SKEL_RIGHT_WRIST, XN_SKEL_RIGHT_HAND, XN_SKEL_RIGHT_FINGERTIP,
+	XN_SKEL_LEFT_HIP, XN_SKEL_LEFT_KNEE, XN_SKEL_LEFT_ANKLE, XN_SKEL_LEFT_FOOT,
+	XN_SKEL_RIGHT_HIP, XN_SKEL_RIGHT_KNEE, XN_SKEL_RIGHT_ANKLE, XN_SKEL_RIGHT_FOOT
+};
+const int g_NumJointTypes = 24;
+
 DepthMapLogger::DepthMapLogger()
-	: p_h5_file_(NULL), have_created_ds_(false)
-{ }
+	: p_h5_file_(NULL), p_frames_group_(NULL)
+	, joint_dt_(sizeof(Joint))
+{
+	// Create memory datatype for joints
+	joint_dt_.insertMember(H5std_string("id"), HOFFSET(Joint, id), PredType::NATIVE_INT);
+	joint_dt_.insertMember(H5std_string("confidence"), HOFFSET(Joint, confidence),
+			PredType::NATIVE_FLOAT);
+	joint_dt_.insertMember(H5std_string("x"), HOFFSET(Joint, x), PredType::NATIVE_FLOAT);
+	joint_dt_.insertMember(H5std_string("y"), HOFFSET(Joint, y), PredType::NATIVE_FLOAT);
+	joint_dt_.insertMember(H5std_string("z"), HOFFSET(Joint, z), PredType::NATIVE_FLOAT);
+	joint_dt_.insertMember(H5std_string("u"), HOFFSET(Joint, u), PredType::NATIVE_FLOAT);
+	joint_dt_.insertMember(H5std_string("v"), HOFFSET(Joint, v), PredType::NATIVE_FLOAT);
+	joint_dt_.insertMember(H5std_string("w"), HOFFSET(Joint, w), PredType::NATIVE_FLOAT);
+}
 
 DepthMapLogger::~DepthMapLogger()
 {
 	Close();
 }
 
-void DepthMapLogger::Open(const char* h5_filename, const char* log_filename)
+void DepthMapLogger::Open(const char* h5_filename)
 {
 	// Ensure closed
 	Close();
 
 	// Open new ones
-	log_stream_.open(log_filename, std::ofstream::out | std::ofstream::binary);
 	p_h5_file_ = new H5File(h5_filename, H5F_ACC_TRUNC);
+
+	// Create new group for storing frames
+	p_frames_group_ = new Group(p_h5_file_->createGroup("frames"));
 }
 
 void DepthMapLogger::Close()
 {
-	if(log_stream_.is_open()) {
-		log_stream_.close();
-	}
-
 	// this invalidates all the rest of the datasets as well
-	if(p_h5_file_) {
-		// destroy file
-		delete p_h5_file_;
-	}
+	if(p_frames_group_) { delete p_frames_group_; }
+	if(p_h5_file_) { delete p_h5_file_; }
 
 	// Reset pointer
 	p_h5_file_ = NULL;
-	have_created_ds_ = false;
-}
-
-// Called to ensure that datasets are created. It is called when we know what
-// the x- and y-sizes of the depth buffer are. Returns true iff dataset
-// creation succeeded.
-bool DepthMapLogger::EnsureDatasets_(int w, int h)
-{
-	if(!p_h5_file_) { return false; }
-	if(have_created_ds_) { return true; }
-
-	H5File &file(*p_h5_file_);
-
-	hsize_t chunk_dims[3] = {64, 64, 1};
-	uint16_t fill_value = 0;
-
-	// Reset frame count
-	frame_count_ = 0;
-
-	// Create depth dataset
-
-	DSetCreatPropList creat_props;
-	creat_props.setChunk(3, chunk_dims);
-	creat_props.setFillValue(PredType::NATIVE_UINT16, &fill_value);
-
-	hsize_t rows(static_cast<hsize_t>(h)), cols(static_cast<hsize_t>(w));
-	hsize_t creation_dims[3] = { rows, cols, 1 };
-	hsize_t max_dims[3] = { rows, cols, H5S_UNLIMITED };
-	DataSpace mem_space(3, creation_dims, max_dims);
-
-	depth_ds_ = file.createDataSet("depth", PredType::NATIVE_UINT16, mem_space, creat_props);
-	label_ds_ = file.createDataSet("label", PredType::NATIVE_UINT16, mem_space, creat_props);
-
-	have_created_ds_ = true;
-	return true;
+	p_frames_group_ = NULL;
 }
 
 void DepthMapLogger::DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 {
-	if(!EnsureDatasets_(dmd.XRes(), dmd.YRes())) { return; }
+	static char name_str[20], comment_str[255];
 
-	// This frame's index is the previous frame count
-	hsize_t this_frame_idx = static_cast<hsize_t>(frame_count_);
+	// Don't do anything if the h5 file is not open
+	if(!p_h5_file_ || !p_frames_group_) { return; }
 
-	// Increment frame count
-	frame_count_ += 1;
+	// References to various bits of the HDF5 output
+	H5File &file(*p_h5_file_);
+	Group &frames_group(*p_frames_group_);
+
+	// This frame's index is the number of frames we've previously saved
+	hsize_t this_frame_idx = frames_group.getNumObjs();
+
+	// Create this frame's group
+	snprintf(name_str, 20, "frame_%06lld", this_frame_idx);
+	snprintf(comment_str, 255, "Data for frame %lld", this_frame_idx);
+	Group this_frame_group(frames_group.createGroup(name_str));
+	this_frame_group.setComment(".", comment_str);
+
+	// Create attributes for this group
+	Attribute idx_attr = this_frame_group.createAttribute("idx", PredType::NATIVE_HSIZE, DataSpace());
+	idx_attr.write(PredType::NATIVE_HSIZE, &this_frame_idx);
+
+	// Create this frame's datasets
+	DSetCreatPropList creat_props;
+	uint16_t fill_value(0);
+	creat_props.setFillValue(PredType::NATIVE_UINT16, &fill_value);
+
+	hsize_t rows(static_cast<hsize_t>(dmd.YRes())), cols(static_cast<hsize_t>(dmd.XRes()));
+	hsize_t creation_dims[2] = { rows, cols };
+	hsize_t max_dims[2] = { rows, cols };
+	DataSpace mem_space(2, creation_dims, max_dims);
+
+	DataSet depth_ds(this_frame_group.createDataSet(
+		"depth", PredType::NATIVE_UINT16, mem_space, creat_props));
+	DataSet label_ds(this_frame_group.createDataSet(
+		"label", PredType::NATIVE_UINT16, mem_space, creat_props));
 
 	// Get depth and label buffers
 	const uint16_t *p_depths = dmd.Data();
 	const uint16_t *p_labels = smd.Data();
 
-	hsize_t creation_dims[3] = { dmd.YRes(), dmd.XRes(), 1 };
-	hsize_t max_dims[3] = { dmd.YRes(), dmd.XRes(), 1 };
-	DataSpace mem_space(3, creation_dims, max_dims);
+	// Write depth data
+	depth_ds.write(p_depths, PredType::NATIVE_UINT16);
 
-	// Extend depth and label dataset to have correct size
-	hsize_t new_size[3] = { dmd.YRes(), dmd.XRes(), static_cast<hsize_t>(frame_count_) };
-	depth_ds_.extend(new_size);
-	label_ds_.extend(new_size);
+	// Write label data
+	label_ds.write(p_labels, PredType::NATIVE_UINT16);
 
-	// Select appropriate hyperslab for depth data from depth dataset
-	DataSpace depth_slab = depth_ds_.getSpace();
-	hsize_t depth_offset[3] = { 0, 0, this_frame_idx };
-	hsize_t depth_slab_size[3] = { dmd.YRes(), dmd.XRes(), 1 };
-	depth_slab.selectHyperslab(H5S_SELECT_SET, depth_slab_size, depth_offset);
+	// Convert non-zero depth values into 3D point positions
+	XnPoint3D *pts = new XnPoint3D[rows*cols];
+	uint16_t *pt_labels = new uint16_t[rows*cols];
+	size_t n_pts(0);
+	for(size_t depth_idx(0); depth_idx < rows*cols; ++depth_idx) {
+		// Skip zero depth values
+		if(p_depths[depth_idx] == 0) {
+			continue;
+		}
 
-	// Write depth data into slab
-	depth_ds_.write(p_depths, PredType::NATIVE_UINT16, mem_space, depth_slab);
+		// Store projective-values
+		pts[n_pts].X = depth_idx % cols;
+		pts[n_pts].Y = depth_idx / cols;
+		pts[n_pts].Z = p_depths[depth_idx];
+		pt_labels[n_pts] = p_labels[depth_idx];
+		++n_pts;
+	}
+	g_DepthGenerator.ConvertProjectiveToRealWorld(n_pts, pts, pts);
 
-	// Select appropriate hyperslab for label data from label dataset
-	DataSpace label_slab = label_ds_.getSpace();
-	hsize_t label_offset[3] = { 0, 0, this_frame_idx };
-	hsize_t label_slab_size[3] = { dmd.YRes(), dmd.XRes(), 1 };
-	label_slab.selectHyperslab(H5S_SELECT_SET, label_slab_size, label_offset);
+	// Create points dataset
+	hsize_t pts_creation_dims[2] = { n_pts, 3 };
+	hsize_t pts_max_dims[2] = { n_pts, 3 };
+	DataSpace pts_mem_space(2, pts_creation_dims, pts_max_dims);
+	DataSet pts_ds(this_frame_group.createDataSet(
+		"points", PredType::NATIVE_FLOAT, pts_mem_space, creat_props));
+	hsize_t pt_labels_creation_dims[1] = { n_pts };
+	hsize_t pt_labels_max_dims[1] = { n_pts };
+	DataSpace pt_labels_mem_space(1, pt_labels_creation_dims, pt_labels_max_dims);
+	DataSet pt_labels_ds(this_frame_group.createDataSet(
+		"point_labels", PredType::NATIVE_UINT16, pt_labels_mem_space, creat_props));
 
-	// Write label data into slab
-	label_ds_.write(p_labels, PredType::NATIVE_UINT16, mem_space, label_slab);
+	// Write points data
+	pts_ds.write(pts, PredType::NATIVE_FLOAT);
+	pt_labels_ds.write(pt_labels, PredType::NATIVE_UINT16);
 
-	std::ostream& os(log_stream_);
-
-	// Start a depth map outputting the current frame id
-	os << "FRAME:" << "idx=" << this_frame_idx << ',' << "id=" << dmd.FrameID() << '\n';
+	// Create groups to store detected users
+	Group users_group(this_frame_group.createGroup("users"));
 
 	// Dump each user in turn
 	char strLabel[50] = "";
@@ -155,77 +189,70 @@ void DepthMapLogger::DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneM
 	g_UserGenerator.GetUsers(aUsers, nUsers);
 	for (int i = 0; i < nUsers; ++i)
 	{
-		// Write current user id
-		os << "USER:" << aUsers[i] << '\n';
+		// Create a group for this user
+		snprintf(name_str, 20, "user_%02d", aUsers[i]);
+		Group this_user_group(users_group.createGroup(name_str));
+
+		// Create attributes for this group
+		Attribute user_idx_attr = this_user_group.createAttribute(
+				"idx", PredType::NATIVE_UINT16, DataSpace());
+		uint16_t this_user_idx(aUsers[i]);
+		user_idx_attr.write(PredType::NATIVE_UINT16, &this_user_idx);
+
 
 		// Write state (if any)
+		H5std_string strwritebuf;
 		if (g_UserGenerator.GetSkeletonCap().IsTracking(aUsers[i]))
 		{
-			os << "STATE:Tracking\n";
+			strwritebuf = "tracking";
 		}
 		else if (g_UserGenerator.GetSkeletonCap().IsCalibrating(aUsers[i]))
 		{
 			// Calibrating
-			os << "STATE:Calibrating\n";
+			strwritebuf = "calibrating";
 		}
 		else
 		{
 			// Nothing
-			os << "STATE:Looking\n";
+			strwritebuf = "looking";
 		}
+		StrType strdatatype(PredType::C_S1, strwritebuf.size()); // of length 256 characters
+		Attribute user_state_attr = this_user_group.createAttribute(
+				"state", strdatatype, DataSpace());
+		user_state_attr.write(strdatatype, strwritebuf);
 
-		// Are we actually tracking a user?
-		if (g_UserGenerator.GetSkeletonCap().IsTracking(aUsers[i]))
+		static Joint joints[g_NumJointTypes];
+		int n_joints_found = 0;
+
+		// Try to dump all joints
+		for(int jt_idx=0; jt_idx < g_NumJointTypes; ++jt_idx)
 		{
-			// Try to dump all joints
-			DumpJoint(os, aUsers[i], XN_SKEL_HEAD);
-			DumpJoint(os, aUsers[i], XN_SKEL_NECK);
-			DumpJoint(os, aUsers[i], XN_SKEL_TORSO);
-			DumpJoint(os, aUsers[i], XN_SKEL_WAIST);
-
-			DumpJoint(os, aUsers[i], XN_SKEL_LEFT_COLLAR);
-			DumpJoint(os, aUsers[i], XN_SKEL_LEFT_SHOULDER);
-			DumpJoint(os, aUsers[i], XN_SKEL_LEFT_ELBOW);
-			DumpJoint(os, aUsers[i], XN_SKEL_LEFT_WRIST);
-			DumpJoint(os, aUsers[i], XN_SKEL_LEFT_HAND);
-			DumpJoint(os, aUsers[i], XN_SKEL_LEFT_FINGERTIP);
-
-			DumpJoint(os, aUsers[i], XN_SKEL_RIGHT_COLLAR);
-			DumpJoint(os, aUsers[i], XN_SKEL_RIGHT_SHOULDER);
-			DumpJoint(os, aUsers[i], XN_SKEL_RIGHT_ELBOW);
-			DumpJoint(os, aUsers[i], XN_SKEL_RIGHT_WRIST);
-			DumpJoint(os, aUsers[i], XN_SKEL_RIGHT_HAND);
-			DumpJoint(os, aUsers[i], XN_SKEL_RIGHT_FINGERTIP);
-
-			DumpJoint(os, aUsers[i], XN_SKEL_LEFT_HIP);
-			DumpJoint(os, aUsers[i], XN_SKEL_LEFT_KNEE);
-			DumpJoint(os, aUsers[i], XN_SKEL_LEFT_ANKLE);
-			DumpJoint(os, aUsers[i], XN_SKEL_LEFT_FOOT);
-
-			DumpJoint(os, aUsers[i], XN_SKEL_RIGHT_HIP);
-			DumpJoint(os, aUsers[i], XN_SKEL_RIGHT_KNEE);
-			DumpJoint(os, aUsers[i], XN_SKEL_RIGHT_ANKLE);
-			DumpJoint(os, aUsers[i], XN_SKEL_RIGHT_FOOT);
+			if(DumpJoint(aUsers[i], g_JointTypes[jt_idx], joints[n_joints_found])) 
+			{
+				++n_joints_found;
+			}
 		}
 
-		// Finished recording user
-		os << "ENDUSER\n";
+		// Create joints dataset
+		hsize_t joints_dim[] = { n_joints_found };
+		DataSpace joints_space(1, joints_dim);
+		DataSet joints_ds(this_user_group.createDataSet("joints", joint_dt_, joints_space));
+		joints_ds.write(joints, joint_dt_);
 	}
-	os << "ENDFRAME" << '\n';
 }
 
-void DumpJoint(std::ostream& os, XnUserID player, XnSkeletonJoint eJoint)
+bool DumpJoint(XnUserID player, XnSkeletonJoint eJoint, Joint &out_joint)
 {
 	// Check the user is being tracked
 	if (!g_UserGenerator.GetSkeletonCap().IsTracking(player))
 	{
-		return;
+		return false;
 	}
 
 	// Check the joint is actually there
 	if (!g_UserGenerator.GetSkeletonCap().IsJointActive(eJoint))
 	{
-		return;
+		return false;
 	}
 
 	// Extract joint positions
@@ -237,11 +264,16 @@ void DumpJoint(std::ostream& os, XnUserID player, XnSkeletonJoint eJoint)
 
 	g_DepthGenerator.ConvertRealWorldToProjective(1, &pt, &imagePt);
 
-	os << "JOINT:" << "id=" << eJoint << ',' <<
-		"name=" << NameJoint(eJoint) << ',' <<
-		"confidence=" << joint.fConfidence << ',' <<
-		"x=" << pt.X << ',' << "y=" << pt.Y << ',' << "z=" << pt.Z << ',' <<
-		"u=" << imagePt.X << ',' << "v=" << imagePt.Y << '\n';
+	out_joint.id = eJoint;
+	out_joint.confidence = joint.fConfidence;
+	out_joint.x = pt.X;
+	out_joint.y = pt.Y;
+	out_joint.z = pt.Z;
+	out_joint.u = imagePt.X;
+	out_joint.v = imagePt.Y;
+	out_joint.w = imagePt.Z;
+
+	return true;
 }
 
 const char* NameJoint(XnSkeletonJoint joint)

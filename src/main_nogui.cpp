@@ -23,6 +23,7 @@
 //---------------------------------------------------------------------------
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream>
+#include <time.h>
 #include <XnOpenNI.h>
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
@@ -80,7 +81,7 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationComplete(xn::SkeletonCapability
 	}
 
 // Command-line option description
-enum optionIndex { UNKNOWN, HELP, CAPTURE, PLAYBACK, LOG, };
+enum optionIndex { UNKNOWN, HELP, CAPTURE, PLAYBACK, LOG, DURATION, };
 const option::Descriptor g_Usage[] =
 {
 	{ UNKNOWN,  0, "",   "",         option::Arg::None,	"Usage:\n"
@@ -90,6 +91,7 @@ const option::Descriptor g_Usage[] =
 	{ CAPTURE,  0, "c",  "capture",  Arg::Required,		"  --capture, -c CONFIG  \tCapture from sensor using specified XML config." },
 	{ PLAYBACK, 0, "p",  "playback", Arg::Required,		"  --playback, -p RECORDING  \tPlayback a .oni recording." },
 	{ LOG,      0, "l",  "log",      Arg::Required,		"  --log, -l PREFIX  \tLog results to PREFIX.{h5,txt}." },
+	{ DURATION, 0, "d",  "duration", Arg::Numeric,		"  --duration, -d SECONDS  \tRun main loop for the specified duration." },
 
 	{ 0,0,0,0,0,0 } // Zero record marking end of array.
 };
@@ -136,6 +138,16 @@ int main(int argc, char **argv)
 		std::cerr << "Error: exactly one of --playback and --capture must be specified.\n";
 		option::printUsage(std::cerr, g_Usage);
 		return EXIT_FAILURE;
+	}
+
+	double duration(0.); // >0 only if a duration has been requested
+	if (options[DURATION]) {
+		// We know this will succeed because the argument has been checked.
+		duration = static_cast<double>(strtol(options[DURATION].arg, NULL, 10));
+		if (duration < 0.) {
+			std::cerr << "Duration must be positive.\n";
+			return EXIT_FAILURE;
+		}
 	}
 
 	EnsureDepthGenerator();
@@ -193,8 +205,15 @@ int main(int argc, char **argv)
 	std::cout << "---------------------------------------------------------------------------\n";
 	std::cout << "Starting tracker. Press any key to exit.\n";
 	std::cout << "---------------------------------------------------------------------------\n";
+	time_t loop_start(time(NULL));
 	while (!xnOSWasKeyboardHit())
 	{
+		// Was a particular duration requested?
+		if ((duration > 0.) && (difftime(time(NULL), loop_start) >= duration)) {
+			std::cout << "Loop has run for " << duration << " seconds.\n";
+			break;
+		}
+
 		// Wait for an update
 		g_Context.WaitOneUpdateAll(g_UserGenerator);
 

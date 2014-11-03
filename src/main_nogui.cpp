@@ -53,6 +53,8 @@ DepthMapLogger g_Log;
 bool InitialiseContextFromRecording(const char* recordingFilename);
 bool InitialiseContextFromXmlConfig(const char* xmlConfigFilename);
 bool EnsureDepthGenerator();
+bool EnsureUserGenerator();
+bool StartGenerating();
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& /*generator*/, XnUserID nId, void* /*pCookie*/);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& /*generator*/, XnUserID nId, void* /*pCookie*/);
@@ -65,13 +67,6 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationComplete(xn::SkeletonCapability
 //---------------------------------------------------------------------------
 
 #define SAMPLE_XML_PATH "../Data/SamplesConfig.xml"
-
-#define CHECK_RC(nRetVal, what)										\
-	if (nRetVal != XN_STATUS_OK)									\
-	{																\
-		printf("%s failed: %s\n", what, xnGetStatusString(nRetVal));\
-		return nRetVal;												\
-	}
 
 #define CHECK_RC_RETURNING(rv, nRetVal, what)										\
 	if (nRetVal != XN_STATUS_OK)									\
@@ -120,6 +115,23 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
+	double duration(0.); // >0 only if a duration has been requested
+	if (options[DURATION]) {
+		// We know this will succeed because the argument has been checked.
+		duration = static_cast<double>(strtol(options[DURATION].arg, NULL, 10));
+		if (duration < 0.) {
+			std::cerr << "Duration must be positive.\n";
+			return EXIT_FAILURE;
+		}
+	}
+
+	if (options[LOG]) {
+		std::string logfile_prefix(options[LOG].arg);
+		std::string h5_logfile(logfile_prefix + ".h5"), txt_logfile(logfile_prefix + ".txt");
+		std::cout << "Logging to " << h5_logfile << " and " << txt_logfile << '\n';
+		g_Log.Open(h5_logfile.c_str(), txt_logfile.c_str());
+	}
+
 	// Set up capture device
 	if (options[PLAYBACK])
 	{
@@ -140,63 +152,19 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	double duration(0.); // >0 only if a duration has been requested
-	if (options[DURATION]) {
-		// We know this will succeed because the argument has been checked.
-		duration = static_cast<double>(strtol(options[DURATION].arg, NULL, 10));
-		if (duration < 0.) {
-			std::cerr << "Duration must be positive.\n";
-			return EXIT_FAILURE;
-		}
+	if(!EnsureDepthGenerator()) {
+		std::cerr << "Error initialising depth generator.\n";
+		return EXIT_FAILURE;
 	}
 
-	EnsureDepthGenerator();
-
-	XnStatus nRetVal = XN_STATUS_OK;
-
-	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
-	if (nRetVal != XN_STATUS_OK)
-	{
-		nRetVal = g_UserGenerator.Create(g_Context);
-		CHECK_RC(nRetVal, "Find user generator");
+	if(!EnsureUserGenerator()) {
+		std::cerr << "Error initialising user generator.\n";
+		return EXIT_FAILURE;
 	}
 
-	XnCallbackHandle hUserCallbacks, hCalibrationStart, hCalibrationComplete, hPoseDetected, hCalibrationInProgress, hPoseInProgress;
-	if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON))
-	{
-		printf("Supplied user generator doesn't support skeleton\n");
-		return 1;
-	}
-	nRetVal = g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
-	CHECK_RC(nRetVal, "Register to user callbacks");
-	nRetVal = g_UserGenerator.GetSkeletonCap().RegisterToCalibrationStart(UserCalibration_CalibrationStart, NULL, hCalibrationStart);
-	CHECK_RC(nRetVal, "Register to calibration start");
-	nRetVal = g_UserGenerator.GetSkeletonCap().RegisterToCalibrationComplete(UserCalibration_CalibrationComplete, NULL, hCalibrationComplete);
-	CHECK_RC(nRetVal, "Register to calibration complete");
-
-	if (g_UserGenerator.GetSkeletonCap().NeedPoseForCalibration())
-	{
-		g_bNeedPose = TRUE;
-		if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_POSE_DETECTION))
-		{
-			printf("Pose required, but not supported\n");
-			return 1;
-		}
-		nRetVal = g_UserGenerator.GetPoseDetectionCap().RegisterToPoseDetected(UserPose_PoseDetected, NULL, hPoseDetected);
-		CHECK_RC(nRetVal, "Register to Pose Detected");
-		g_UserGenerator.GetSkeletonCap().GetCalibrationPose(g_strPose);
-	}
-
-	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
-
-	nRetVal = g_Context.StartGeneratingAll();
-	CHECK_RC(nRetVal, "StartGenerating");
-
-	if (options[LOG]) {
-		std::string logfile_prefix(options[LOG].arg);
-		std::string h5_logfile(logfile_prefix + ".h5"), txt_logfile(logfile_prefix + ".txt");
-		std::cout << "Logging to " << h5_logfile << " and " << txt_logfile << '\n';
-		g_Log.Open(h5_logfile.c_str(), txt_logfile.c_str());
+	if(!StartGenerating()) {
+		std::cerr << "Error starting generators.\n";
+		return EXIT_FAILURE;
 	}
 
 	// Main event loop
@@ -312,6 +280,54 @@ bool EnsureDepthGenerator()
 		g_DepthGenerator = mockDepth;
 	}
 
+	return true;
+}
+
+bool EnsureUserGenerator()
+{
+	XnStatus nRetVal = XN_STATUS_OK;
+
+	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
+	if (nRetVal != XN_STATUS_OK)
+	{
+		nRetVal = g_UserGenerator.Create(g_Context);
+		CHECK_RC_RETURNING(false, nRetVal, "Find user generator");
+	}
+
+	XnCallbackHandle hUserCallbacks, hCalibrationStart, hCalibrationComplete, hPoseDetected, hCalibrationInProgress, hPoseInProgress;
+	if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON))
+	{
+		std::cerr << "Supplied user generator doesn't support skeleton\n";
+		return false;
+	}
+	nRetVal = g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
+	CHECK_RC_RETURNING(false, nRetVal, "Register to user callbacks");
+	nRetVal = g_UserGenerator.GetSkeletonCap().RegisterToCalibrationStart(UserCalibration_CalibrationStart, NULL, hCalibrationStart);
+	CHECK_RC_RETURNING(false, nRetVal, "Register to calibration start");
+	nRetVal = g_UserGenerator.GetSkeletonCap().RegisterToCalibrationComplete(UserCalibration_CalibrationComplete, NULL, hCalibrationComplete);
+	CHECK_RC_RETURNING(false, nRetVal, "Register to calibration complete");
+
+	if (g_UserGenerator.GetSkeletonCap().NeedPoseForCalibration())
+	{
+		g_bNeedPose = TRUE;
+		if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_POSE_DETECTION))
+		{
+			std::cerr << "Pose required, but not supported\n";
+			return false;
+		}
+		nRetVal = g_UserGenerator.GetPoseDetectionCap().RegisterToPoseDetected(UserPose_PoseDetected, NULL, hPoseDetected);
+		CHECK_RC_RETURNING(false, nRetVal, "Register to Pose Detected");
+		g_UserGenerator.GetSkeletonCap().GetCalibrationPose(g_strPose);
+	}
+
+	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
+}
+
+bool StartGenerating()
+{
+	XnStatus nRetVal = XN_STATUS_OK;
+	nRetVal = g_Context.StartGeneratingAll();
+	CHECK_RC_RETURNING(false, nRetVal, "StartGenerating");
 	return true;
 }
 

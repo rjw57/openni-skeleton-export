@@ -20,6 +20,7 @@ find_package(HDF5 REQUIRED COMPONENTS CXX)
 include_directories(${HDF5_INCLUDE_DIRS})
 add_definitions(${HDF5_DEFINITIONS})
 
+# Code common to all utilities
 add_library(common
     src/io.cpp
     src/mainloop.cpp
@@ -29,6 +30,7 @@ target_link_libraries(common
     ${HDF5_LIBRARIES}
 )
 
+# GUI skeleton viewer
 add_executable(skeletonexport
     src/main.cpp
     src/SceneDrawer.cpp
@@ -39,6 +41,7 @@ target_link_libraries(skeletonexport
     ${GLUT_LIBRARIES}
 )
 
+# Non-GUI skeleton viewer
 add_executable(skeletonexport_nogui
     src/main_nogui.cpp
 )

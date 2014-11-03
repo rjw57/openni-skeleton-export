@@ -47,6 +47,10 @@ $ cd build
 $ make && ./skeletonexport ../recordings/Captured-2014-10-31.oni
 ```
 
+There is a non-GUI version of the skeleton tracker/exported which is build
+called, imaginatively, ``skeletonexport_nongui`` which may also be used to
+process recordings/capture live data.
+
 ## Contributing
 
 Pull-requests are very welcome.

@@ -28,7 +28,9 @@
 #include <XnCppWrapper.h>
 #include <XnPropNames.h>
 
+#include "arghelpers.h"
 #include "io.h"
+#include "optionparser.h"
 
 //---------------------------------------------------------------------------
 // Globals
@@ -77,26 +79,67 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationComplete(xn::SkeletonCapability
 		return rv;												\
 	}
 
+// Command-line option description
+enum optionIndex { UNKNOWN, HELP, CAPTURE, PLAYBACK, };
+const option::Descriptor g_Usage[] =
+{
+	{ UNKNOWN,  0, "",   "",         option::Arg::None,	"Usage:\n"
+							  	"  skeletonexport_nongui [options]\n\n"
+							  	"Options:" },
+	{ HELP,     0, "h?", "help",     option::Arg::None, 	"  --help, -h, -?  \tPrint a brief usage summary." },
+	{ CAPTURE,  0, "c",  "capture",  Arg::Required,		"  --capture, -c CONFIG  \tCapture from sensor using specified XML config." },
+	{ PLAYBACK, 0, "p",  "playback", Arg::Required,		"  --playback, -p RECORDING  \tPlayback a .oni recording." },
+
+	{ 0,0,0,0,0,0 } // Zero record marking end of array.
+};
+
 int main(int argc, char **argv)
 {
-	XnStatus nRetVal = XN_STATUS_OK;
+	// Parse command-line options
+	argc-=(argc>0); argv+=(argc>0); // skip program name argv[0] if present
+	option::Stats  stats(g_Usage, argc, argv);
+	option::Option options[stats.options_max], buffer[stats.buffer_max];
+	option::Parser parse(g_Usage, argc, argv, options, buffer);
 
-	if (argc > 1)
+	if (parse.error()) {
+		return EXIT_FAILURE;
+	}
+
+	if (options[HELP]) {
+		option::printUsage(std::cout, g_Usage);
+		return EXIT_SUCCESS;
+	}
+
+	// Check command-line options for validity.
+	if (options[CAPTURE] && options[PLAYBACK]) {
+		std::cerr << "Error: only one of --playback and --capture may be specified.\n";
+		option::printUsage(std::cerr, g_Usage);
+		return EXIT_FAILURE;
+	}
+
+	// Set up capture device
+	if (options[PLAYBACK])
 	{
-		if(!InitialiseContextFromRecording(argv[1]))
+		if(!InitialiseContextFromRecording(options[PLAYBACK].arg))
 		{
 			return EXIT_FAILURE;
 		}
 	}
-	else
+	else if(options[CAPTURE])
 	{
-		if(!InitialiseContextFromXmlConfig(SAMPLE_XML_PATH))
+		if(!InitialiseContextFromXmlConfig(options[CAPTURE].arg))
 		{
 			return EXIT_FAILURE;
 		}
+	} else {
+		std::cerr << "Error: exactly one of --playback and --capture must be specified.\n";
+		option::printUsage(std::cerr, g_Usage);
+		return EXIT_FAILURE;
 	}
 
 	EnsureDepthGenerator();
+
+	XnStatus nRetVal = XN_STATUS_OK;
 
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
 	if (nRetVal != XN_STATUS_OK)

@@ -25,15 +25,15 @@ add_subdirectory(common)
 include_directories(common/include)
 
 # GUI skeleton viewer
-add_executable(skeletonexport skeletonexport/main.cpp skeletonexport/SceneDrawer.cpp)
-target_link_libraries(skeletonexport
+add_executable(glskelview glskelview/main.cpp glskelview/SceneDrawer.cpp)
+target_link_libraries(glskelview
     common
     ${OPENGL_LIBRARIES}
     ${GLUT_LIBRARIES}
 )
 
 # Non-GUI skeleton viewer
-add_executable(skeletonexport_nogui skeletonexport_nogui.cpp)
-target_link_libraries(skeletonexport_nogui common)
+add_executable(logskel logskel.cpp)
+target_link_libraries(logskel common)
 
 # vim:sw=4:sts=4:et

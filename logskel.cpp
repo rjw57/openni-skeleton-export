@@ -48,7 +48,7 @@ enum optionIndex { UNKNOWN, HELP, CAPTURE, PLAYBACK, LOG, DURATION, };
 const option::Descriptor g_Usage[] =
 {
 	{ UNKNOWN,  0, "",   "",         option::Arg::None,	"Usage:\n"
-							  	"  skeletonexport_nongui [options]\n\n"
+							  	"  logskel [options]\n\n"
 							  	"Options:" },
 	{ HELP,     0, "h?", "help",     option::Arg::None, 	"  --help, -h, -?  \tPrint a brief usage summary." },
 	{ CAPTURE,  0, "c",  "capture",  Arg::Required,		"  --capture, -c CONFIG  \tCapture from sensor using specified XML config." },

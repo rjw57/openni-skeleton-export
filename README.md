@@ -20,7 +20,7 @@ $ cd openni-skeleton-export
 $ mkdir build
 $ cd build
 $ cmake ..
-$ make && ./skeletonexport
+$ make && ./glskelview
 ```
 
 Note that the path to [SamplesConfig.xml](Data/SamplesConfig.xml) is hard-coded

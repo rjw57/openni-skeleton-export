@@ -80,7 +80,7 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationComplete(xn::SkeletonCapability
 	}
 
 // Command-line option description
-enum optionIndex { UNKNOWN, HELP, CAPTURE, PLAYBACK, };
+enum optionIndex { UNKNOWN, HELP, CAPTURE, PLAYBACK, LOG, };
 const option::Descriptor g_Usage[] =
 {
 	{ UNKNOWN,  0, "",   "",         option::Arg::None,	"Usage:\n"
@@ -89,6 +89,7 @@ const option::Descriptor g_Usage[] =
 	{ HELP,     0, "h?", "help",     option::Arg::None, 	"  --help, -h, -?  \tPrint a brief usage summary." },
 	{ CAPTURE,  0, "c",  "capture",  Arg::Required,		"  --capture, -c CONFIG  \tCapture from sensor using specified XML config." },
 	{ PLAYBACK, 0, "p",  "playback", Arg::Required,		"  --playback, -p RECORDING  \tPlayback a .oni recording." },
+	{ LOG,      0, "l",  "log",      Arg::Required,		"  --log, -l PREFIX  \tLog results to PREFIX.{h5,txt}." },
 
 	{ 0,0,0,0,0,0 } // Zero record marking end of array.
 };
@@ -179,11 +180,19 @@ int main(int argc, char **argv)
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
-	g_Log.Open("log.h5", "log.txt");
+	if (options[LOG]) {
+		std::string logfile_prefix(options[LOG].arg);
+		std::string h5_logfile(logfile_prefix + ".h5"), txt_logfile(logfile_prefix + ".txt");
+		std::cout << "Logging to " << h5_logfile << " and " << txt_logfile << '\n';
+		g_Log.Open(h5_logfile.c_str(), txt_logfile.c_str());
+	}
 
 	// Main event loop
 	xn::SceneMetaData sceneMD;
 	xn::DepthMetaData depthMD;
+	std::cout << "---------------------------------------------------------------------------\n";
+	std::cout << "Starting tracker. Press any key to exit.\n";
+	std::cout << "---------------------------------------------------------------------------\n";
 	while (!xnOSWasKeyboardHit())
 	{
 		// Wait for an update
@@ -196,6 +205,10 @@ int main(int argc, char **argv)
 		// Log the data
 		g_Log.DumpDepthMap(depthMD, sceneMD);
 	}
+	std::cout << '\n';
+	std::cout << "---------------------------------------------------------------------------\n";
+	std::cout << "Exiting tracker.\n";
+	std::cout << "---------------------------------------------------------------------------\n";
 
 	// Clean up all resources
 	g_scriptNode.Release();

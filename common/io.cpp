@@ -163,21 +163,24 @@ void DepthMapLogger::DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneM
 	}
 	g_DepthGenerator.ConvertProjectiveToRealWorld(n_pts, pts, pts);
 
-	// Create points dataset
-	hsize_t pts_creation_dims[2] = { n_pts, 3 };
-	hsize_t pts_max_dims[2] = { n_pts, 3 };
-	DataSpace pts_mem_space(2, pts_creation_dims, pts_max_dims);
-	DataSet pts_ds(this_frame_group.createDataSet(
-		"points", PredType::NATIVE_FLOAT, pts_mem_space, creat_props));
-	hsize_t pt_labels_creation_dims[1] = { n_pts };
-	hsize_t pt_labels_max_dims[1] = { n_pts };
-	DataSpace pt_labels_mem_space(1, pt_labels_creation_dims, pt_labels_max_dims);
-	DataSet pt_labels_ds(this_frame_group.createDataSet(
-		"point_labels", PredType::NATIVE_UINT16, pt_labels_mem_space, creat_props));
+	if (n_pts > 0)
+	{
+		// Create points dataset
+		hsize_t pts_creation_dims[2] = { n_pts, 3 };
+		hsize_t pts_max_dims[2] = { n_pts, 3 };
+		DataSpace pts_mem_space(2, pts_creation_dims, pts_max_dims);
+		DataSet pts_ds(this_frame_group.createDataSet(
+			"points", PredType::NATIVE_FLOAT, pts_mem_space, creat_props));
+		hsize_t pt_labels_creation_dims[1] = { n_pts };
+		hsize_t pt_labels_max_dims[1] = { n_pts };
+		DataSpace pt_labels_mem_space(1, pt_labels_creation_dims, pt_labels_max_dims);
+		DataSet pt_labels_ds(this_frame_group.createDataSet(
+			"point_labels", PredType::NATIVE_UINT16, pt_labels_mem_space, creat_props));
 
-	// Write points data
-	pts_ds.write(pts, PredType::NATIVE_FLOAT);
-	pt_labels_ds.write(pt_labels, PredType::NATIVE_UINT16);
+		// Write points data
+		pts_ds.write(pts, PredType::NATIVE_FLOAT);
+		pt_labels_ds.write(pt_labels, PredType::NATIVE_UINT16);
+	}
 
 	// Create groups to store detected users
 	Group users_group(this_frame_group.createGroup("users"));
@@ -233,11 +236,14 @@ void DepthMapLogger::DumpDepthMap(const xn::DepthMetaData& dmd, const xn::SceneM
 			}
 		}
 
-		// Create joints dataset
-		hsize_t joints_dim[] = { n_joints_found };
-		DataSpace joints_space(1, joints_dim);
-		DataSet joints_ds(this_user_group.createDataSet("joints", joint_dt_, joints_space));
-		joints_ds.write(joints, joint_dt_);
+		if (n_joints_found > 0)
+		{
+			// Create joints dataset
+			hsize_t joints_dim[] = { n_joints_found };
+			DataSpace joints_space(1, joints_dim);
+			DataSet joints_ds(this_user_group.createDataSet("joints", joint_dt_, joints_space));
+			joints_ds.write(joints, joint_dt_);
+		}
 	}
 }
 

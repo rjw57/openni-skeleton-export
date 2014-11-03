@@ -27,10 +27,10 @@ add_library(common
 
 add_executable(skeletonexport
     src/main.cpp
-    src/io.cpp
     src/SceneDrawer.cpp
 )
 target_link_libraries(skeletonexport
+    common
     ${LIBOPENNI_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${GLUT_LIBRARIES}

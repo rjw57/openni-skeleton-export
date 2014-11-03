@@ -5,7 +5,13 @@ language: cpp
 install:
     - "sudo add-apt-repository -y ppa:eighthave/openni"
     - "sudo apt-get update -y"
-    - "sudo apt-get install -y libopenni-dev freeglut3-dev libgl1-mesa-dev libglu1-mesa-dev libxmu-dev libhdf5-serial-dev"
+    - "sudo apt-get install -y libopenni-dev openni-utils freeglut3-dev libgl1-mesa-dev libglu1-mesa-dev libxmu-dev libhdf5-serial-dev"
+    # Download and install NITE binaries
+    - "wget http://www.mira-project.org/downloads/3rdparty/bin-linux/nite-bin-linux-x64-v1.5.2.21.tar.bz2"
+    - "tar xvf nite-bin-linux-x64-v1.5.2.21.tar.bz2"
+    - "pushd NITE-Bin-Dev-Linux-x64-*"
+    - "sudo ./install.sh"
+    - "popd"
 script:
     - "mkdir build"
     - "cd build"

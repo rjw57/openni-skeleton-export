@@ -24,6 +24,10 @@ add_library(common
     src/io.cpp
     src/mainloop.cpp
 )
+target_link_libraries(common
+    ${LIBOPENNI_LIBRARIES}
+    ${HDF5_LIBRARIES}
+)
 
 add_executable(skeletonexport
     src/main.cpp
@@ -31,10 +35,8 @@ add_executable(skeletonexport
 )
 target_link_libraries(skeletonexport
     common
-    ${LIBOPENNI_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${GLUT_LIBRARIES}
-    ${HDF5_LIBRARIES}
 )
 
 add_executable(skeletonexport_nogui
@@ -42,8 +44,6 @@ add_executable(skeletonexport_nogui
 )
 target_link_libraries(skeletonexport_nogui
     common
-    ${LIBOPENNI_LIBRARIES}
-    ${HDF5_LIBRARIES}
 )
 
 # vim:sw=4:sts=4:et

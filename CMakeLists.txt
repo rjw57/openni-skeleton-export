@@ -20,6 +20,11 @@ find_package(HDF5 REQUIRED COMPONENTS CXX)
 include_directories(${HDF5_INCLUDE_DIRS})
 add_definitions(${HDF5_DEFINITIONS})
 
+add_library(common
+    src/io.cpp
+    src/mainloop.cpp
+)
+
 add_executable(skeletonexport
     src/main.cpp
     src/io.cpp
@@ -34,9 +39,9 @@ target_link_libraries(skeletonexport
 
 add_executable(skeletonexport_nogui
     src/main_nogui.cpp
-    src/io.cpp
 )
 target_link_libraries(skeletonexport_nogui
+    common
     ${LIBOPENNI_LIBRARIES}
     ${HDF5_LIBRARIES}
 )

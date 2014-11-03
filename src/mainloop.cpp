@@ -53,11 +53,11 @@ void XN_CALLBACK_TYPE UserPose_PoseDetected(xn::PoseDetectionCapability& /*capab
 void XN_CALLBACK_TYPE UserCalibration_CalibrationStart(xn::SkeletonCapability& /*capability*/, XnUserID nId, void* /*pCookie*/);
 void XN_CALLBACK_TYPE UserCalibration_CalibrationComplete(xn::SkeletonCapability& /*capability*/, XnUserID nId, XnCalibrationStatus eStatus, void* /*pCookie*/);
 
-#define CHECK_RC_RETURNING(rv, nRetVal, what)										\
+#define CHECK_RC_RETURNING(rv, nRetVal, what)								\
 	if (nRetVal != XN_STATUS_OK)									\
-	{																\
-		printf("%s failed: %s\n", what, xnGetStatusString(nRetVal));\
-		return rv;												\
+	{												\
+		std::cerr << (what) << " failed: " << xnGetStatusString(nRetVal) << '\n';		\
+		return rv;										\
 	}
 
 bool InitialiseContextFromRecording(const char* recordingFilename)

@@ -32,4 +32,13 @@ target_link_libraries(skeletonexport
     ${HDF5_LIBRARIES}
 )
 
+add_executable(skeletonexport_nogui
+    src/main_nogui.cpp
+    src/io.cpp
+)
+target_link_libraries(skeletonexport_nogui
+    ${LIBOPENNI_LIBRARIES}
+    ${HDF5_LIBRARIES}
+)
+
 # vim:sw=4:sts=4:et

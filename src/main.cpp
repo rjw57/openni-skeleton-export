@@ -26,7 +26,6 @@
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
 #include "SceneDrawer.h"
-#include "io.h"
 #include <XnPropNames.h>
 #include <GL/glut.h>
 
@@ -57,8 +56,6 @@ XnBool g_bPause = false;
 XnBool g_bRecord = false;
 
 XnBool g_bQuit = false;
-
-DepthMapLogger g_Log;
 
 //---------------------------------------------------------------------------
 // Code
@@ -216,9 +213,6 @@ void glutDisplay (void)
 		g_DepthGenerator.GetMetaData(depthMD);
 		g_UserGenerator.GetUserPixels(0, sceneMD);
 		DrawDepthMap(depthMD, sceneMD);
-
-		// HACK
-		g_Log.DumpDepthMap(depthMD, sceneMD);
 
 	glutSwapBuffers();
 }
@@ -415,8 +409,6 @@ int main(int argc, char **argv)
 
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
-
-	g_Log.Open("log.h5", "log.txt");
 
 	glInit(&argc, argv);
 	glutMainLoop();

@@ -20,25 +20,33 @@ find_package(HDF5 REQUIRED COMPONENTS CXX)
 include_directories(${HDF5_INCLUDE_DIRS})
 add_definitions(${HDF5_DEFINITIONS})
 
-add_executable(skeletonexport
-    src/main.cpp
+# Code common to all utilities
+add_library(common
     src/io.cpp
-    src/SceneDrawer.cpp
+    src/mainloop.cpp
 )
-target_link_libraries(skeletonexport
+target_link_libraries(common
     ${LIBOPENNI_LIBRARIES}
-    ${OPENGL_LIBRARIES}
-    ${GLUT_LIBRARIES}
     ${HDF5_LIBRARIES}
 )
 
+# GUI skeleton viewer
+add_executable(skeletonexport
+    src/main.cpp
+    src/SceneDrawer.cpp
+)
+target_link_libraries(skeletonexport
+    common
+    ${OPENGL_LIBRARIES}
+    ${GLUT_LIBRARIES}
+)
+
+# Non-GUI skeleton viewer
 add_executable(skeletonexport_nogui
     src/main_nogui.cpp
-    src/io.cpp
 )
 target_link_libraries(skeletonexport_nogui
-    ${LIBOPENNI_LIBRARIES}
-    ${HDF5_LIBRARIES}
+    common
 )
 
 # vim:sw=4:sts=4:et

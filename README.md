@@ -60,6 +60,11 @@ For example, to playback ``recording.oni`` for 10 seconds logging to
 $ build/logskel --playback recording.oni --duration 10 --log /tmp/skel.h5
 ```
 
+## Examples
+
+The [examples](examples/) directory contains a selection of example scripts
+showing how the output from this utility may be parsed and used.
+
 ## Reading the logs
 
 There is an [example IPython

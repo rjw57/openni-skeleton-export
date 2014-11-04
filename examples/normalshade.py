@@ -41,7 +41,10 @@ def main():
 
         # Copy points to numpy array
         points = frame.points[:]
-        point_labels = frame.point_labels[:]
+
+        # Create NxMx3 "point map"
+        point_map = np.zeros(depth.shape + (3,))
+        point_map[depth != 0, :] = points
 
         # Overall normal image
         normals = np.zeros(depth.shape + (3,))
@@ -49,8 +52,8 @@ def main():
         # Extract each user from the depth image
         for user in frame.users:
             user_mask = label == user._v_attrs.idx
-            user_depths = np.where(user_mask, depth, 0)
-            user_normals = compute_normals(user_depths)
+            user_points = np.where(np.dstack((user_mask,)*3), point_map, 0)
+            user_normals = compute_normals(user_points, user_mask)
             normals = np.where(np.dstack((user_mask,) * 3), user_normals, normals)
 
         # Compute a normal image
@@ -58,39 +61,41 @@ def main():
         Image.fromarray(np.clip(255*light_im, 0, 255).astype(np.uint8)).save(
             '{0}-{1:05d}.png'.format(opts['<frame-prefix>'], frame_idx))
 
-#        light_im = np.dstack((light_intensity, light_intensity, light_intensity))
-#        Image.fromarray(np.clip(255*light_im, 0, 255).astype(np.uint8)).save(
-#            '{0}-{1:05d}.png'.format(opts['<frame-prefix>'], frame_idx))
+def compute_normals(points, mask):
+    """
+    Given a NxMx3 array of points, compute a NxMx3 array of computed normals.
+    mask should be a NxM array of booleans which are true iff the corresponding
+    pixels in points are valid.
 
-def compute_normals(depths):
-    """Given a NxM array of depths, compute a NxMx3 array of computed normals."""
+    """
+    # Mask invalid points
+    points = np.copy(points)
+    for i in range(3):
+        points[np.logical_not(mask), i] = points[..., i].min()
 
-    # mask is True iff this is a valid depth pixel
-    mask = depths != 0
+    # Use a dilation filter to "grow" each point
+    grow_points = np.copy(points)
+    for i in range(4):
+        grow_points = np.where(np.dstack((mask,)*3),
+                grow_points,
+                ndi.filters.maximum_filter(grow_points, size=(3,3,1))
+        )
 
-    # convert depths to floating point
-    depths = depths.astype(np.float32)
-
-    # Use a dilation filter to "grow" depth image
-    grow_depths = np.where(mask,
-            depths,
-            ndi.morphology.grey_dilation(depths, size=7)
-    )
-
-    # Blur depth image
-    grow_depths = ndi.filters.gaussian_filter(grow_depths, 1)
+    # Blur point image
+    for i in range(3):
+        grow_points[...,i] = ndi.filters.gaussian_filter(grow_points[...,i], 1)
 
     # Compute row-wise and col-wise gradients
-    row_grads, col_grads = np.gradient(grow_depths)
+    dxdu, dxdv = np.gradient(grow_points[...,0])
+    dydu, dydv = np.gradient(grow_points[...,1])
+    dzdu, dzdv = np.gradient(grow_points[...,2])
 
-    # Compute pseudo-3d tangent vectors
-    ddx = grow_depths * 1e-3
-    ddy = -(grow_depths * 1e-3)
-    row_tangents = np.dstack((ddx, np.zeros_like(ddx), row_grads))
-    col_tangents = np.dstack((np.zeros_like(ddy), ddy, col_grads))
+    # Compute 3d tangent vectors
+    row_tangents = np.dstack((dxdu, dydu, dzdu))
+    col_tangents = -np.dstack((dxdv, dydv, dzdv)) # NB: -ve since v points along -ve y
 
     # Take cross product to compute normal
-    normals = np.cross(col_tangents, row_tangents)
+    normals = np.cross(row_tangents, col_tangents)
 
     # Normalise normals
     norm_lens = np.sqrt(np.sum(normals ** 2, axis=-1))

@@ -117,7 +117,7 @@ def bone_labels(frame, user):
         left_chest = (6,17), right_chest = (12,21),
         left_thigh = (17,18), left_calf = (18,20),
         right_thigh = (21,22), right_calf = (22,24),
-        left_collar = (2,6), right_collar = (6,12),
+        left_collar = (2,6), right_collar = (2,12),
         # chest = (2,3)
     )
 
